@@ -105,12 +105,7 @@ namespace TouhouSaveSync.GoogleDrive
         public File FindFirstFileWithName(string name, string parentFolder)
         {
             IList<File> files = this.FindFilesWithName(name, "", parentFolder);
-            if (files.Count == 0)
-            {
-                return null;
-            }
-
-            return files[0];
+            return files.Count == 0 ? null : files[0];
         }
 
         /// <summary>
