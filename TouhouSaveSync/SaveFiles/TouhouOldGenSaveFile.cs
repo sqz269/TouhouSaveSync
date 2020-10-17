@@ -10,12 +10,12 @@ namespace TouhouSaveSync.SaveFiles
 {
     public sealed class TouhouOldGenSaveFile : TouhouSaveFile
     {
-        private readonly string GameExeName;
+        private readonly string m_gameExeName;
 
         public TouhouOldGenSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath) : 
             base(gameTitle, zipSaveStoragePath, gameSavePath, TouhouGameGeneration.Old)
         {
-            this.GameExeName = FindTouhouSavePath.TouhouToExeName[gameTitle];
+            this.m_gameExeName = FindTouhouSavePath.TouhouToExeName[gameTitle];
         }
 
         public override string ZipSaveFile()
@@ -23,7 +23,7 @@ namespace TouhouSaveSync.SaveFiles
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Create);
             using ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Create);
 
-            string gameName = this.GameExeName.Split(".")[0];
+            string gameName = this.m_gameExeName.Split(".")[0];
 
             string cfgFilePath = Path.Combine(this.GameSavePath, $"{gameName}.cfg");
             if (File.Exists(cfgFilePath))
