@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Resources;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.SaveFiles;
@@ -11,7 +12,8 @@ namespace TouhouSaveSync
     {
         Pull,
         Push,
-        Create
+        Create,
+        None
     }
 
     public class SyncHandler
@@ -22,6 +24,11 @@ namespace TouhouSaveSync
         private readonly GoogleDriveHandler m_googleDriveHandler;
 
         private string m_googleDriveSaveFolder;
+
+        /// <summary>
+        /// Don't perform pull/push action if the remote/local file is only changed this many seconds apart
+        /// </summary>
+        private const int SyncThresholdTimeDifference = 60;
 
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
@@ -70,22 +77,45 @@ namespace TouhouSaveSync
 
             double saveModifyTime = saveFile.GetScoreDatModifyTime();
             double remoteModifyTime = remoteFile.ModifiedTime.Value.ToUniversalTime().Subtract(DateTime.UnixEpoch).TotalSeconds;
-            if (saveModifyTime > remoteModifyTime)
-                return SyncAction.Push;
 
-            return SyncAction.Pull;
+            double timeDifference = saveModifyTime - remoteModifyTime;
+
+            // If the time difference with the google drive are not that different
+            // and we have to account for upload time and other stuff
+            // Thus, they might be the same save file
+            if (Math.Abs(timeDifference) <= SyncThresholdTimeDifference)
+                return SyncAction.None;
+
+            // if the time difference is a positive number,
+            // that means the current save file is x seconds ahead of google drive save
+            // which then we need to push the current save to the cloud
+            return timeDifference > 0 ? SyncAction.Push : SyncAction.Pull;
         }
 
         private void ExecuteSyncAction(TouhouSaveFile saveFile, SyncAction action)
         {
+            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveFile.GetRemoteFileName());
             switch (action)
             {
                 case SyncAction.Create:
+                {
+                    saveFile.ZipSaveFile();
+                    this.m_googleDriveHandler.Upload(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
+                        "application/zip", this.m_googleDriveSaveFolder);
                     break;
+                }
                 case SyncAction.Push:
+                {
                     break;
+                }
                 case SyncAction.Pull:
+                {
                     break;
+                }
+                case SyncAction.None:
+                {
+                    break;
+                }
             }
         }
 

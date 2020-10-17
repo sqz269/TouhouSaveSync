@@ -176,15 +176,17 @@ namespace TouhouSaveSync.GoogleDrive
         public string Upload(string name, string filePath, string contentType, string uploadFolderPath="")
         {
             File fileMetadata = new File {Name = name};
-            fileMetadata.Parents.Add(uploadFolderPath);
+
+            if (uploadFolderPath.Length != 0)
+                fileMetadata.Parents = new List<string>{uploadFolderPath};
 
             FilesResource.CreateMediaUpload request;
             using (var stream = new FileStream(filePath, FileMode.Open))
             {
                 request = this.Service.Files.Create(fileMetadata, stream, contentType);
                 request.Fields = "id";
-                request.Upload();
                 request.ProgressChanged += this.GoogleDriveUploadProgress;
+                request.Upload();
             }
             return request.ResponseBody.Id;
         }
@@ -199,8 +201,8 @@ namespace TouhouSaveSync.GoogleDrive
                 // TODO: Figure out if by leaving fileMetadata.Name empty, it will keep the original name
                 request = this.Service.Files.Update(fileMetadata, fileId, stream, contentType);
                 request.Fields = "id";
-                request.Upload();
                 request.ProgressChanged += this.GoogleDriveUploadProgress;
+                request.Upload();
             }
 
             return request.ResponseBody.Id;
