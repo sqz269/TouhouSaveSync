@@ -29,14 +29,12 @@ namespace TouhouSaveSync
             }*/
 
             FirstTimeInit();
-            Dictionary<String, String> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("EarlyTouhouGamesDirectory"));
-            Dictionary<String, String> newGenSavesFound = FindTouhouSavePath.GetTouhouNewGenPath();
-
-            TouhouNewGenSaveFile[] newGenSaveFiles = TouhouNewGenSaveFile.ToTouhouSaveFiles(newGenSavesFound);
-            TouhouOldGenSaveFile[] oldGenSaveFiles = TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGenGamesFound);
 
             GoogleDriveHandler googleDriveHandler = 
                 new GoogleDriveHandler(ConfigManager.GetSetting("CredentialsPath"), ConfigManager.GetSetting("TokenPath"));
+
+            SyncHandler syncHandler = new SyncHandler(googleDriveHandler);
+            syncHandler.SyncLoop();
         }
     }
 }
