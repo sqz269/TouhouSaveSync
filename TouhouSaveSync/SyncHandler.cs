@@ -16,8 +16,8 @@ namespace TouhouSaveSync
 
     public class SyncHandler
     {
-        public TouhouNewGenSaveFile[] NewGenSaveFiles;
-        public TouhouOldGenSaveFile[] OldGenSaveFiles;
+        public TouhouNewGenSaveFile[] NewGenSaveFiles { get; private set; }
+        public TouhouOldGenSaveFile[] OldGenSaveFiles { get; private set; }
 
         private readonly GoogleDriveHandler m_googleDriveHandler;
 
