@@ -88,9 +88,9 @@ namespace TouhouSaveSync.GoogleDrive
             request.PageToken = pageToken;
             string query;
             if (parentFolder.Length == 0)
-                query = $"name = '{name}' and not mimeType = 'application/vnd.google-apps.folder'";
+                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder')";
             else
-                query = $"name = '{name}' and not mimeType = 'application/vnd.google-apps.folder' and parents in {parentFolder}";
+                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder') and (parents in '{parentFolder}')";
             request.Q = query;
 
             return request.Execute().Files;
@@ -157,7 +157,7 @@ namespace TouhouSaveSync.GoogleDrive
         public string GetFolderId(string name, string description = "")
         {
             IList<File> files = this.FindFoldersWithName("name");
-            if (files.Count >= 0)
+            if (files.Count > 0)
             {
                 return files[0].Id;
             }

@@ -78,10 +78,15 @@ namespace TouhouSaveSync
 
         private void ExecuteSyncAction(TouhouSaveFile saveFile, SyncAction action)
         {
-            /*switch (action)
+            switch (action)
             {
-                case 
-            }*/
+                case SyncAction.Create:
+                    break;
+                case SyncAction.Push:
+                    break;
+                case SyncAction.Pull:
+                    break;
+            }
         }
 
         /// <summary>
