@@ -80,13 +80,12 @@ namespace TouhouSaveSync.GoogleDrive
         /// <param name="name">The name of the file to find</param>
         /// <param name="pageToken">The page token of the list</param>
         /// <param name="parentFolder">The folder to search the file in</param>
-        /// <returns>A list of folders with the provided name</returns>
+        /// <returns>A list of files with the provided name</returns>
         public IList<File> FindFilesWithName(string name, string pageToken="", string parentFolder="")
         {
             FilesResource.ListRequest request = this.Service.Files.List();
             request.PageSize = 10;
             request.PageToken = pageToken;
-
             string query;
             if (parentFolder.Length == 0)
                 query = $"name = '{name}' and not mimeType = 'application/vnd.google-apps.folder'";
@@ -95,6 +94,23 @@ namespace TouhouSaveSync.GoogleDrive
             request.Q = query;
 
             return request.Execute().Files;
+        }
+
+        /// <summary>
+        /// Find the first file with name, if there is no file exist, then return null
+        /// </summary>
+        /// <param name="name">The name of the file to find</param>
+        /// <param name="parentFolder">The folder to search the file in</param>
+        /// <returns>The file with provided name if exists, else null</returns>
+        public File FindFirstFileWithName(string name, string parentFolder)
+        {
+            IList<File> files = this.FindFilesWithName(name, "", parentFolder);
+            if (files.Count == 0)
+            {
+                return null;
+            }
+
+            return files[0];
         }
 
         /// <summary>
