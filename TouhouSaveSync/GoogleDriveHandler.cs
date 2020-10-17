@@ -121,7 +121,7 @@ namespace TouhouSaveSync.GoogleDrive
             FilesResource.ListRequest request = this.Service.Files.List();
             request.PageSize = 10;
             request.PageToken = pageToken;
-            request.Q = $"mimeType = 'application/vnd.google-apps.folder' and name = '{name}'";
+            request.Q = $"mimeType = 'application/vnd.google-apps.folder' and name = '{name}' and trashed = false";
             request.Fields = "nextPageToken, files(id, name)";
             return request.Execute().Files;
         }
@@ -156,7 +156,7 @@ namespace TouhouSaveSync.GoogleDrive
         /// <returns>Returns the id of the folder with provided name</returns>
         public string GetFolderId(string name, string description = "")
         {
-            IList<File> files = this.FindFoldersWithName("name");
+            IList<File> files = this.FindFoldersWithName(name);
             if (files.Count > 0)
             {
                 return files[0].Id;
