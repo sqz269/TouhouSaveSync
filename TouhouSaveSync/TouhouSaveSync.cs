@@ -11,9 +11,9 @@ namespace TouhouSaveSync
         {
             Console.WriteLine("It looks like it's the first time the program has ran on this computer. We need a few things to get started");
             string earlyTouhouGameDirectory =
-                InputManager.GetStringInput("Please Enter the folder path contains early generation touhou games (6-12.8): ");
+                InputManager.GetStringInput("Please Enter the folder path contains touhou games: ");
 
-            ConfigManager.UpdateSetting("EarlyTouhouGamesDirectory", earlyTouhouGameDirectory, false);
+            ConfigManager.UpdateSetting("TouhouGamesDirectory", earlyTouhouGameDirectory, false);
         }
 
         static void Main(string[] args)
