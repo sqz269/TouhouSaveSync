@@ -1,15 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace TouhouSaveSync.SaveFiles
 {
     public class TouhouSaveFilesHandler
     {
         public readonly TouhouSaveFile SaveFile;
+        private FileSystemWatcher m_fileWatcher;
 
         public TouhouSaveFilesHandler(TouhouSaveFile saveFile)
         {
             this.SaveFile = saveFile;
+            this.RegisterFileSystemWatcher();
+        }
+
+        private void RegisterFileSystemWatcher()
+        {
+            this.m_fileWatcher = new FileSystemWatcher(this.SaveFile.GameSavePath)
+            {
+                NotifyFilter = NotifyFilters.LastWrite, 
+                Filter = "*.dat" // Too lazy to actually find the score.dat file and watch, so we're just watch the whole dir
+            };
+            this.m_fileWatcher.Changed += this.OnSaveFileChange;
+            this.m_fileWatcher.EnableRaisingEvents = true;
+        }
+
+        private void OnSaveFileChange(object sender, FileSystemEventArgs e)
+        {
+            Console.WriteLine($"File: {e.FullPath} changed. Type: {e.ChangeType}");
         }
 
         public static TouhouSaveFilesHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
@@ -26,6 +45,7 @@ namespace TouhouSaveSync.SaveFiles
             foreach (TouhouOldGenSaveFile oldGenSaveFile in TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGen))
             {
                 handlers[i] = new TouhouSaveFilesHandler(oldGenSaveFile);
+                i++;
             }
 
             return handlers;
