@@ -128,9 +128,7 @@ namespace TouhouSaveSync
                 }
                 case SyncAction.Push:
                 {
-                    saveFile.ZipSaveFile();
-                    this.m_googleDriveHandler.Update(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
-                        saveFile.GoogleDriveFileId, "application/zip", saveFile.GetScoreDatModifyTime().ToString());
+                    this.PushSaves(saveFile);
                     break;
                 }
                 case SyncAction.Pull:
@@ -157,9 +155,11 @@ namespace TouhouSaveSync
         /// Syncs the cloud save with this PC's save
         /// Overwrite cloud files
         /// </summary>
-        public void PushSaves()
+        public void PushSaves(TouhouSaveFile saveFile)
         {
-
+            saveFile.ZipSaveFile();
+            this.m_googleDriveHandler.Update(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
+                saveFile.GoogleDriveFileId, "application/zip", saveFile.GetScoreDatModifyTime().ToString());
         }
 
         /// <summary>
