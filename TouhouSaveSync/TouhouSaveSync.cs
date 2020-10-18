@@ -1,10 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.IO;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
-using TouhouSaveSync.SaveFiles;
 using TouhouSaveSync.Utility;
 
 namespace TouhouSaveSync

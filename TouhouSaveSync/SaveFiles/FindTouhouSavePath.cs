@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
-using Google.Apis.Http;
 using TouhouSaveSync.Config;
 
 namespace TouhouSaveSync.Utility

@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Reflection.Metadata;
-using System.Runtime.CompilerServices;
 using TouhouSaveSync.Utility;
 
 namespace TouhouSaveSync.SaveFiles
