@@ -71,7 +71,8 @@ namespace TouhouSaveSync.SaveFiles
         {
             foreach (string f in Directory.GetFiles(this.GameSavePath, "*.dat"))
             {
-                if (f.StartsWith("score"))
+                string filename = f.Split(Path.DirectorySeparatorChar)[^1];
+                if (filename.StartsWith("score"))
                 {
                     DateTime dateTime = File.GetLastWriteTime(f);
                     return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
