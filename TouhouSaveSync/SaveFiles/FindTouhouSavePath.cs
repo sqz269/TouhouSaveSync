@@ -82,15 +82,17 @@ namespace TouhouSaveSync.Utility
                 string fileName = f.Split(Path.DirectorySeparatorChar)[^1];
 
                 String game = matchFor.GetValueOrDefault(fileName);
-                if (game != null)
-                {
-                    itemsFound.TryAdd(game, useFileName ? fileName : f);
-                }
+                if (game == null) continue;
+
+                if (useFileName)
+                    itemsFound.TryAdd(game, fileName);
+                else
+                    itemsFound.TryAdd(game, f);
             }
 
             foreach (string d in Directory.GetDirectories(dir))
             {
-                SearchDirectoryRecursive(d, matchFor, itemsFound);
+                SearchDirectoryRecursive(d, matchFor, itemsFound, useFileName);
             }
         }
 
@@ -129,7 +131,7 @@ namespace TouhouSaveSync.Utility
             // This function sets the dictionary's value to .exe
             // the exe name without the .exe is the save folder path at %APPDATA%
             SearchDirectoryRecursive(directory, ExeNameToTouhouNewGen, itemsFound, true);
-            string touhouNewGenSavePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string touhouNewGenSavePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ShanghaiAlice");
             List<string> keys = new List<string>(itemsFound.Keys);
             foreach (string key in keys)
             {
