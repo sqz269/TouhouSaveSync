@@ -40,6 +40,7 @@ namespace TouhouSaveSync
         private void InitSaveFiles()
         {
             Dictionary<String, String> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
+            // TODO: Detect and sync newer generation games that does not exist on the PC, but have save files on the drive
             Dictionary<String, String> newGenSavesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
 
             this.NewGenSaveFiles = TouhouNewGenSaveFile.ToTouhouSaveFiles(newGenSavesFound);

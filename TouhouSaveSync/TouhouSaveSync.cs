@@ -3,6 +3,8 @@ using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.Utility;
 
+// TODO: Implement Logging Facility (Probably System.Diagnostics)
+
 namespace TouhouSaveSync
 {
     static class TouhouSaveSync
