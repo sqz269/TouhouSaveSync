@@ -76,7 +76,23 @@ namespace TouhouSaveSync
                 return SyncAction.Create;
 
             double saveModifyTime = saveFile.GetScoreDatModifyTime();
-            double remoteModifyTime = remoteFile.ModifiedTime.Value.ToUniversalTime().Subtract(DateTime.UnixEpoch).TotalSeconds;
+
+            // The remote file's Description should be set with GetScoreDatModifyTime during upload/update
+            // The description will be converted to a double and seen as an Unix Time stamp and compared
+            // Which will be used to determine which side is out of date
+            if (remoteFile.Description == null)
+                return SyncAction.Push;
+
+            double remoteModifyTime;
+            try
+            {
+                remoteModifyTime = Double.Parse(remoteFile.Description);
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Unable to parse the file's description for last mod. Updating file");
+                return SyncAction.Push;
+            }
 
             double timeDifference = saveModifyTime - remoteModifyTime;
 
@@ -100,8 +116,10 @@ namespace TouhouSaveSync
                 case SyncAction.Create:
                 {
                     saveFile.ZipSaveFile();
+                    // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
+                    // for determining which side is outdated. See DetermineSyncAction for how is the description used
                     this.m_googleDriveHandler.Upload(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
-                        "application/zip", this.m_googleDriveSaveFolder);
+                        "application/zip", this.m_googleDriveSaveFolder, saveFile.GetScoreDatModifyTime().ToString());
                     break;
                 }
                 case SyncAction.Push:
