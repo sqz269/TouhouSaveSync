@@ -26,6 +26,23 @@ namespace TouhouSaveSync.SaveFiles
             this.ZipSaveStoragePath = zipSaveStoragePath;
             this.Generation = generation;
             this.GameSavePath = gameSavePath;
+            this.ValidateSavePath();
+        }
+
+        /// <summary>
+        /// Check if GameSaveFilePath for new generations exist, if not, create them
+        /// <br></br>
+        /// Because we predicted the new generation's save path
+        /// by combining the exe filename and %APPDATA%\ShanghaiAlice
+        /// There is a possibility that the save directory does not exist at all
+        /// and it will cause problems when we trying do stuff when the content
+        /// </summary>
+        private void ValidateSavePath()
+        {
+            if (this.Generation == TouhouGameGeneration.New)
+            {
+                Directory.CreateDirectory(this.GameSavePath);
+            }
         }
 
         /// <summary>
