@@ -17,8 +17,7 @@ namespace TouhouSaveSync
 
     public class SyncHandler
     {
-        public TouhouNewGenSaveFile[] NewGenSaveFiles { get; private set; }
-        public TouhouOldGenSaveFile[] OldGenSaveFiles { get; private set; }
+        public TouhouSaveFilesHandler[] SaveFiles { get; private set; }
 
         private readonly GoogleDriveHandler m_googleDriveHandler;
 
@@ -41,10 +40,9 @@ namespace TouhouSaveSync
         {
             Dictionary<String, String> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
             // TODO: Detect and sync newer generation games that does not exist on the PC, but have save files on the drive
-            Dictionary<String, String> newGenSavesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
+            Dictionary<String, String> newGenGamesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
 
-            this.NewGenSaveFiles = TouhouNewGenSaveFile.ToTouhouSaveFiles(newGenSavesFound);
-            this.OldGenSaveFiles = TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGenGamesFound);
+            this.SaveFiles = TouhouSaveFilesHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
         }
 
         private void InitGoogleDrive()
@@ -55,29 +53,21 @@ namespace TouhouSaveSync
 
         private void InitialSync()
         {
-            foreach (TouhouNewGenSaveFile newGenSaveFile in this.NewGenSaveFiles)
-            {
-                var remoteFile = 
-                    this.m_googleDriveHandler.FindFirstFileWithName(newGenSaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-                newGenSaveFile.GoogleDriveFileId = remoteFile.Id;
-                this.ExecuteSyncAction(newGenSaveFile, this.DetermineSyncAction(remoteFile, newGenSaveFile));
-            }
-
-            foreach (TouhouOldGenSaveFile oldGenSaveFile in this.OldGenSaveFiles)
+            foreach (TouhouSaveFilesHandler handler in this.SaveFiles)
             {
                 var remoteFile =
-                    this.m_googleDriveHandler.FindFirstFileWithName(oldGenSaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-                oldGenSaveFile.GoogleDriveFileId = remoteFile.Id;
-                this.ExecuteSyncAction(oldGenSaveFile, this.DetermineSyncAction(remoteFile, oldGenSaveFile));
+                    this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
+                handler.SaveFile.GoogleDriveFileId = remoteFile.Id;
+                this.ExecuteSyncAction(handler, this.DetermineSyncAction(remoteFile, handler));
             }
         }
 
-        private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, TouhouSaveFile saveFile)
+        private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, TouhouSaveFilesHandler saveHandler)
         {
             if (remoteFile == null)
                 return SyncAction.Create;
 
-            double saveModifyTime = saveFile.GetScoreDatModifyTime();
+            double saveModifyTime = saveHandler.SaveFile.GetScoreDatModifyTime();
 
             // The remote file's Description should be set with GetScoreDatModifyTime during upload/update
             // The description will be converted to a double and seen as an Unix Time stamp and compared
@@ -110,24 +100,24 @@ namespace TouhouSaveSync
             return timeDifference > 0 ? SyncAction.Push : SyncAction.Pull;
         }
 
-        private void ExecuteSyncAction(TouhouSaveFile saveFile, SyncAction action)
+        private void ExecuteSyncAction(TouhouSaveFilesHandler saveHandler, SyncAction action)
         {
-            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveFile.GetRemoteFileName());
+            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.SaveFile.GetRemoteFileName());
             switch (action)
             {
                 case SyncAction.Create:
                 {
-                    this.CreateSaves(saveFile);
+                    this.CreateSaves(saveHandler);
                     break;
                 }
                 case SyncAction.Push:
                 {
-                    this.PushSaves(saveFile);
+                    this.PushSaves(saveHandler);
                     break;
                 }
                 case SyncAction.Pull:
                 {
-                    this.PullSaves(saveFile);
+                    this.PullSaves(saveHandler);
                     break;
                 }
                 case SyncAction.None:
@@ -137,42 +127,46 @@ namespace TouhouSaveSync
             }
         }
 
+        // TODO: move all the SyncAction method into saveHandler?
         /// <summary>
         /// Upload this PC's save to the google drive.
         /// <br></br>
         /// Should Only be used if there is no previous saves
         /// </summary>
-        /// <param name="saveFile"></param>
-        public void CreateSaves(TouhouSaveFile saveFile)
+        /// <param name="saveHandler"></param>
+        public void CreateSaves(TouhouSaveFilesHandler saveHandler)
         {
-            saveFile.ZipSaveFile();
+            saveHandler.SaveFile.ZipSaveFile();
             // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
             // for determining which side is outdated. See DetermineSyncAction for how is the description used
-            string id = this.m_googleDriveHandler.Upload(saveFile.GetRemoteFileName(),
-                saveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
-                saveFile.GetScoreDatModifyTime().ToString());
-            saveFile.GoogleDriveFileId = id;
+            string id = this.m_googleDriveHandler.Upload(saveHandler.SaveFile.GetRemoteFileName(),
+                saveHandler.SaveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
+                saveHandler.SaveFile.GetScoreDatModifyTime().ToString());
+            saveHandler.SaveFile.GoogleDriveFileId = id;
         }
 
         /// <summary>
         /// Sync this PC's save with the cloud save,
         /// will overwrite local save files
         /// </summary>
-        public void PullSaves(TouhouSaveFile saveFile)
+        public void PullSaves(TouhouSaveFilesHandler saveHandler)
         {
-            this.m_googleDriveHandler.Download(saveFile.GoogleDriveFileId, saveFile.ZipSaveStoragePath);
-            saveFile.LoadZippedSaveFile();
+            this.m_googleDriveHandler.Download(saveHandler.SaveFile.GoogleDriveFileId,
+                saveHandler.SaveFile.ZipSaveStoragePath);
+            saveHandler.SaveFile.LoadZippedSaveFile();
         }
 
         /// <summary>
         /// Syncs the cloud save with this PC's save
         /// Overwrite cloud files
         /// </summary>
-        public void PushSaves(TouhouSaveFile saveFile)
+        public void PushSaves(TouhouSaveFilesHandler saveHandler)
         {
-            saveFile.ZipSaveFile();
-            this.m_googleDriveHandler.Update(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
-                saveFile.GoogleDriveFileId, "application/zip", saveFile.GetScoreDatModifyTime().ToString());
+            saveHandler.SaveFile.ZipSaveFile();
+            this.m_googleDriveHandler.Update(saveHandler.SaveFile.GetRemoteFileName(),
+                saveHandler.SaveFile.ZipSaveStoragePath,
+                saveHandler.SaveFile.GoogleDriveFileId, "application/zip",
+                saveHandler.SaveFile.GetScoreDatModifyTime().ToString());
         }
 
         /// <summary>
