@@ -86,12 +86,12 @@ namespace TouhouSaveSync.GoogleDrive
             FilesResource.ListRequest request = this.Service.Files.List();
             request.PageSize = 10;
             request.PageToken = pageToken;
-            request.Fields = "nextPageToken, files(id, name, modifiedTime)";
+            request.Fields = "nextPageToken, files(id, name, modifiedTime, description)";
             string query;
             if (parentFolder.Length == 0)
-                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder')";
+                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder') and (trashed = false)";
             else
-                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder') and (parents in '{parentFolder}')";
+                query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder') and (parents in '{parentFolder}') and (trashed = false)";
             request.Q = query;
 
             return request.Execute().Files;
@@ -173,10 +173,11 @@ namespace TouhouSaveSync.GoogleDrive
         /// <param name="filePath">The absolute path to the file to upload</param>
         /// <param name="contentType">The mime type of the file</param>
         /// <param name="uploadFolderPath">The folder to upload the file to (Must be a Folder id</param>
+        /// <param name="description">The file's description</param>
         /// <returns>Return the ID of uploaded file</returns>
-        public string Upload(string name, string filePath, string contentType, string uploadFolderPath="")
+        public string Upload(string name, string filePath, string contentType, string uploadFolderPath="", string description="")
         {
-            File fileMetadata = new File {Name = name};
+            File fileMetadata = new File {Name = name, Description = description};
 
             if (uploadFolderPath.Length != 0)
                 fileMetadata.Parents = new List<string>{uploadFolderPath};
