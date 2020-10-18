@@ -70,20 +70,6 @@ namespace TouhouSaveSync.Utility
         }
 
         /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="touhouExe"></param>
-        public static void UpdateTouhouOldGenerationConfig(Dictionary<String, String> touhouExe)
-        {
-            // TODO: Remove entries if necessary
-            foreach (KeyValuePair<string, string> kv in touhouExe)
-            {
-                ConfigManager.AddOrUpdateSetting(kv.Key, kv.Value, false);
-            }
-            ConfigManager.Save(ConfigurationSaveMode.Modified);
-        }
-
-        /// <summary>
         /// Walks the surface of the directory at %APPDATA%\ShanghaiAlice to find newer touhou game's save folders
         /// </summary>
         /// <param name="itemsFound">The dictionary contains TouhouGame : TouhouSaveFolder</param>
@@ -108,6 +94,7 @@ namespace TouhouSaveSync.Utility
             string appdataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string modernTouhouSavePath = Path.Join(appdataPath, "ShanghaiAlice");
             if (!Directory.Exists(modernTouhouSavePath))
+                // TODO: Also Attempt to detect modern touhou games
                 Console.WriteLine("Did not attempt to detect any modern touhou save file as {0} does not exist", modernTouhouSavePath);
             else
             {
@@ -115,11 +102,6 @@ namespace TouhouSaveSync.Utility
             }
 
             return newGenSavesFound;
-        }
-
-        public static void UpdateTouhouNewGenerationConfig(Dictionary<String, String> touhouDictionary)
-        {
-
         }
     }
 }
