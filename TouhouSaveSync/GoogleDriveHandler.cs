@@ -193,9 +193,9 @@ namespace TouhouSaveSync.GoogleDrive
             return request.ResponseBody.Id;
         }
 
-        public string Update(string name, string filePath, string fileId, string contentType)
+        public string Update(string name, string filePath, string fileId, string contentType, string description="")
         {
-            File fileMetadata = new File { Name = name };
+            File fileMetadata = new File { Name = name, Description = description};
             
             FilesResource.UpdateMediaUpload request;
             using (var stream = new FileStream(filePath, FileMode.Open))
