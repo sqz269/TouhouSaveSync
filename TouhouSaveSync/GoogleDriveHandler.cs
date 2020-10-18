@@ -86,6 +86,7 @@ namespace TouhouSaveSync.GoogleDrive
             FilesResource.ListRequest request = this.Service.Files.List();
             request.PageSize = 10;
             request.PageToken = pageToken;
+            request.Fields = "nextPageToken, files(id, name, modifiedTime)";
             string query;
             if (parentFolder.Length == 0)
                 query = $"(name = '{name}') and (not mimeType = 'application/vnd.google-apps.folder')";
@@ -215,7 +216,7 @@ namespace TouhouSaveSync.GoogleDrive
             else if (progress.Status == UploadStatus.Uploading)
                 Console.WriteLine("Uploading... {0} bytes uploaded", progress.BytesSent);
             else if (progress.Status == UploadStatus.Completed)
-                Console.WriteLine("Upload completed");
+                Console.WriteLine("Upload completed. Uploaded a total of {0} bytes", progress.BytesSent);
         }
 
         /// <summary>
