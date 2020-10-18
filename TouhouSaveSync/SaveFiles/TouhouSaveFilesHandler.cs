@@ -9,6 +9,10 @@ namespace TouhouSaveSync.SaveFiles
         public readonly TouhouSaveFile SaveFile;
         private FileSystemWatcher m_fileWatcher;
 
+        public delegate void OnSaveFileChange(TouhouSaveFilesHandler handler);
+
+        public OnSaveFileChange OnSaveFileChangeCallback;
+
         public TouhouSaveFilesHandler(TouhouSaveFile saveFile)
         {
             this.SaveFile = saveFile;
@@ -22,13 +26,19 @@ namespace TouhouSaveSync.SaveFiles
                 NotifyFilter = NotifyFilters.LastWrite, 
                 Filter = "*.dat" // Too lazy to actually find the score.dat file and watch, so we're just watch the whole dir
             };
-            this.m_fileWatcher.Changed += this.OnSaveFileChange;
+            this.m_fileWatcher.Changed += this.OnSaveFileChangeFromWatch;
             this.m_fileWatcher.EnableRaisingEvents = true;
         }
 
-        private void OnSaveFileChange(object sender, FileSystemEventArgs e)
+        private void OnSaveFileChangeFromWatch(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"File: {e.FullPath} changed. Type: {e.ChangeType}");
+            this.OnSaveFileChangeCallback?.Invoke(this);
+        }
+
+        public void RegisterOnSaveFileChangeCallbackExternal(OnSaveFileChange callback)
+        {
+            this.OnSaveFileChangeCallback += callback;
         }
 
         public static TouhouSaveFilesHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,

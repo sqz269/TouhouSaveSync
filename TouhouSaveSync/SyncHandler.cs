@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.SaveFiles;
@@ -28,6 +29,8 @@ namespace TouhouSaveSync
         /// </summary>
         private const int SyncThresholdTimeDifference = 60;
 
+        private readonly HashSet<TouhouSaveFilesHandler> m_syncQueue = new HashSet<TouhouSaveFilesHandler>();
+
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
             this.m_googleDriveHandler = googleDriveHandler;
@@ -49,6 +52,8 @@ namespace TouhouSaveSync
 
             Console.WriteLine("Pre-Processing Game Save Folders");
             this.SaveFiles = TouhouSaveFilesHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
+
+            this.RegisterSaveFileChangeHandlers();
         }
 
         private void InitGoogleDrive()
@@ -79,6 +84,19 @@ namespace TouhouSaveSync
 
                 this.ExecuteSyncAction(handler, this.DetermineSyncAction(remoteFile, handler));
             }
+        }
+
+        private void RegisterSaveFileChangeHandlers()
+        {
+            foreach (TouhouSaveFilesHandler handler in this.SaveFiles)
+            {
+                handler.RegisterOnSaveFileChangeCallbackExternal(this.OnSaveFileChanged);
+            }
+        }
+
+        private void OnSaveFileChanged(TouhouSaveFilesHandler handler)
+        {
+            this.m_syncQueue.Add(handler);
         }
 
         private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, TouhouSaveFilesHandler saveHandler)
@@ -193,7 +211,10 @@ namespace TouhouSaveSync
         /// </summary>
         public void SyncLoop()
         {
-
+            while (true)
+            {
+                Thread.Sleep(2);
+            }
         }
     }
 }
