@@ -1,13 +1,13 @@
-﻿using Google.Apis.Auth.OAuth2;
-using Google.Apis.Drive.v3;
-using Google.Apis.Services;
-using Google.Apis.Util.Store;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Download;
+using Google.Apis.Drive.v3;
+using Google.Apis.Services;
 using Google.Apis.Upload;
+using Google.Apis.Util.Store;
 using File = Google.Apis.Drive.v3.Data.File;
 
 namespace TouhouSaveSync.GoogleDrive
@@ -40,8 +40,8 @@ namespace TouhouSaveSync.GoogleDrive
 
         public GoogleDriveHandler(string credentialsPath="credentials.json", string tokenPath="token.json")
         {
-            m_credentialsPath = credentialsPath;
-            m_tokenPath = tokenPath;
+            this.m_credentialsPath = credentialsPath;
+            this.m_tokenPath = tokenPath;
             this.Auth();
         }
 

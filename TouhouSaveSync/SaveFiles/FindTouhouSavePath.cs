@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using TouhouSaveSync.Utility;
 
-namespace TouhouSaveSync.Utility
+namespace TouhouSaveSync.SaveFiles
 {
     public static class FindTouhouSavePath
     {
@@ -81,7 +82,7 @@ namespace TouhouSaveSync.Utility
             {
                 string fileName = f.Split(Path.DirectorySeparatorChar)[^1];
 
-                String game = matchFor.GetValueOrDefault(fileName);
+                String game = DictionaryExtension.GetValueOrDefault(matchFor, fileName);
                 if (game == null) continue;
 
                 if (useFileName)
