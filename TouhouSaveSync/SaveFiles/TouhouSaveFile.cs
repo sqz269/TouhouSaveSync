@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.IO.Compression;
 using System.Security.Cryptography;
 
 namespace TouhouSaveSync.SaveFiles
@@ -91,6 +92,11 @@ namespace TouhouSaveSync.SaveFiles
         /// <returns>The MD5 Checksum of the newly created zip file</returns>
         public abstract string ZipSaveFile();
 
-        public abstract string LoadZippedSaveFile();
+        public void LoadZippedSaveFile()
+        {
+            using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Open);
+            using ZipArchive archive = new ZipArchive(stream);
+            archive.ExtractToDirectory(this.GameSavePath, true);
+        }
     }
 }

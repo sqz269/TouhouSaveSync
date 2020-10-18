@@ -48,11 +48,6 @@ namespace TouhouSaveSync.SaveFiles
             return this.GenerateCheckSumForZipFile();
         }
 
-        public override string LoadZippedSaveFile()
-        {
-            throw new System.NotImplementedException();
-        }
-
         public static TouhouOldGenSaveFile[] ToTouhouSaveFiles(Dictionary<string, string> data)
         {
             TouhouOldGenSaveFile[] saveFiles = new TouhouOldGenSaveFile[data.Count];
