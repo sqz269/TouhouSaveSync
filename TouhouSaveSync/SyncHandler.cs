@@ -40,6 +40,7 @@ namespace TouhouSaveSync
             this.InitGoogleDrive();
             Console.WriteLine("Starting Initial Sync");
             this.InitialSync();
+            Console.WriteLine("Initial Sync Completed");
         }
 
         private void InitSaveFiles()
@@ -97,6 +98,18 @@ namespace TouhouSaveSync
         private void OnSaveFileChanged(TouhouSaveFilesHandler handler)
         {
             this.m_syncQueue.Add(handler);
+        }
+
+        /// <summary>
+        /// This Method assumes the remote file exists already
+        /// </summary>
+        /// <param name="handler"></param>
+        /// <returns></returns>
+        public SyncAction DetermineSyncAction(TouhouSaveFilesHandler handler)
+        {
+            var remoteFile =
+                this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
+            return DetermineSyncAction(remoteFile, handler);
         }
 
         private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, TouhouSaveFilesHandler saveHandler)
@@ -206,6 +219,27 @@ namespace TouhouSaveSync
                 saveHandler.SaveFile.GetScoreDatModifyTime().ToString());
         }
 
+        private void PollQueue()
+        {
+            foreach (TouhouSaveFilesHandler handler in this.m_syncQueue)
+            {
+                if (ProcessUtility.IsProcessActive(handler.ExecutableName))
+                {
+                    Console.WriteLine("Holding off sync for {0} because game is active", handler.SaveFile.GameTitle);
+                }
+                else
+                {
+                    this.ExecuteSyncAction(handler, this.DetermineSyncAction(handler));
+                    
+                    // We are modifying collection here,
+                    // and iteration can't continue after that
+                    // so breakout early
+                    this.m_syncQueue.Remove(handler);
+                    return;
+                }
+            }
+        }
+
         /// <summary>
         /// Enters a sync loop
         /// </summary>
@@ -213,7 +247,8 @@ namespace TouhouSaveSync
         {
             while (true)
             {
-                Thread.Sleep(2);
+                this.PollQueue();
+                Thread.Sleep(5000);
             }
         }
     }

@@ -7,6 +7,7 @@ namespace TouhouSaveSync.SaveFiles
     public class TouhouSaveFilesHandler
     {
         public readonly TouhouSaveFile SaveFile;
+        public readonly string ExecutableName;
         private FileSystemWatcher m_fileWatcher;
 
         public delegate void OnSaveFileChange(TouhouSaveFilesHandler handler);
@@ -16,6 +17,9 @@ namespace TouhouSaveSync.SaveFiles
         public TouhouSaveFilesHandler(TouhouSaveFile saveFile)
         {
             this.SaveFile = saveFile;
+            this.ExecutableName = (this.SaveFile.Generation == TouhouGameGeneration.New
+                ? FindTouhouSavePath.TouhouToExeNameNewGen[this.SaveFile.GameTitle]
+                : FindTouhouSavePath.TouhouToExeNameOldGen[this.SaveFile.GameTitle]).Split(".")[0];
             this.RegisterFileSystemWatcher();
         }
 
