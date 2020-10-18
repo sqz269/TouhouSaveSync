@@ -31,17 +31,23 @@ namespace TouhouSaveSync
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
             this.m_googleDriveHandler = googleDriveHandler;
+            Console.WriteLine("Scanning for save directories");
             this.InitSaveFiles();
+            Console.WriteLine("Getting Drive Folder ID for folder with name: TouhouSaveSync");
             this.InitGoogleDrive();
+            Console.WriteLine("Starting Initial Sync");
             this.InitialSync();
         }
 
         private void InitSaveFiles()
         {
+            Console.WriteLine("Scanning for games at: {0}", ConfigManager.GetSetting("TouhouGamesDirectory"));
             Dictionary<String, String> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
             // TODO: Detect and sync newer generation games that does not exist on the PC, but have save files on the drive
             Dictionary<String, String> newGenGamesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
+            Console.WriteLine("Scanning completed. Found a total of {0} games", oldGenGamesFound.Count + newGenGamesFound.Count);
 
+            Console.WriteLine("Pre-Processing Game Save Folders");
             this.SaveFiles = TouhouSaveFilesHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
         }
 
@@ -49,6 +55,7 @@ namespace TouhouSaveSync
         {
             this.m_googleDriveSaveFolder =
                 this.m_googleDriveHandler.GetFolderId("TouhouSaveSync");
+            Console.WriteLine("TouhouSaveSync folder ID: {0}", this.m_googleDriveSaveFolder);
         }
 
         private void InitialSync()
@@ -57,7 +64,19 @@ namespace TouhouSaveSync
             {
                 var remoteFile =
                     this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-                handler.SaveFile.GoogleDriveFileId = remoteFile.Id;
+
+                if (remoteFile != null)
+                {
+                    handler.SaveFile.GoogleDriveFileId = remoteFile.Id;
+                    Console.WriteLine("Found remote save file with id: {0}", remoteFile.Id);
+                }
+                else
+                {
+                    Console.WriteLine("Did not find a remote file under folder: {0} with name: {1}",
+                        this.m_googleDriveSaveFolder, handler.SaveFile.GetRemoteFileName());
+                }
+
+
                 this.ExecuteSyncAction(handler, this.DetermineSyncAction(remoteFile, handler));
             }
         }

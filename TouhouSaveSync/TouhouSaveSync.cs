@@ -20,16 +20,16 @@ namespace TouhouSaveSync
 
         static void Main(string[] args)
         {
-            /*if (ConfigManager.GetSetting("FirstRun") == "true")
+            if (ConfigManager.GetSetting("FirstRun") == "true")
             {
                 FirstTimeInit();
                 ConfigManager.UpdateSetting("FirstRun", "false");
-            }*/
+            }
 
-            FirstTimeInit();
-
+            Console.WriteLine("Initializing Google Drive API");
             GoogleDriveHandler googleDriveHandler = 
                 new GoogleDriveHandler(ConfigManager.GetSetting("CredentialsPath"), ConfigManager.GetSetting("TokenPath"));
+            Console.WriteLine("Google Drive API Initialized");
 
             SyncHandler syncHandler = new SyncHandler(googleDriveHandler);
             syncHandler.SyncLoop();

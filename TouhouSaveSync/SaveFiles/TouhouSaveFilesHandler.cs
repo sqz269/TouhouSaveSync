@@ -38,12 +38,14 @@ namespace TouhouSaveSync.SaveFiles
             int i = 0;
             foreach (TouhouNewGenSaveFile newGenSaveFile in TouhouNewGenSaveFile.ToTouhouSaveFiles(newGen))
             {
+                Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", newGenSaveFile.GameTitle);
                 handlers[i] = new TouhouSaveFilesHandler(newGenSaveFile);
                 i++;
             }
 
             foreach (TouhouOldGenSaveFile oldGenSaveFile in TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGen))
             {
+                Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", oldGenSaveFile.GameTitle);
                 handlers[i] = new TouhouSaveFilesHandler(oldGenSaveFile);
                 i++;
             }
