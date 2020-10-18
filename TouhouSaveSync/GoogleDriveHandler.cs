@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using Google.Apis.Download;
 using Google.Apis.Upload;
 using File = Google.Apis.Drive.v3.Data.File;
 
@@ -210,7 +211,7 @@ namespace TouhouSaveSync.GoogleDrive
             return request.ResponseBody.Id;
         }
 
-        private void GoogleDriveUploadProgress(Google.Apis.Upload.IUploadProgress progress)
+        private void GoogleDriveUploadProgress(IUploadProgress progress)
         {
             if (progress.Status == UploadStatus.Starting)
                 Console.WriteLine("Starting upload");
@@ -218,6 +219,31 @@ namespace TouhouSaveSync.GoogleDrive
                 Console.WriteLine("Uploading... {0} bytes uploaded", progress.BytesSent);
             else if (progress.Status == UploadStatus.Completed)
                 Console.WriteLine("Upload completed. Uploaded a total of {0} bytes", progress.BytesSent);
+        }
+
+        public void Download(string fileId, string dst)
+        {
+            FilesResource.GetRequest request = this.Service.Files.Get(fileId);
+            request.MediaDownloader.ProgressChanged += this.GoogleDriveDownloadProgress;
+            using var stream = new FileStream(dst, FileMode.Create);
+            request.Download(stream);
+        }
+
+        private void GoogleDriveDownloadProgress(IDownloadProgress progress)
+        {
+            switch (progress.Status)
+            {
+                case DownloadStatus.Downloading:
+                {
+                    Console.WriteLine("Downloading ... {0} bytes downloaded", progress.BytesDownloaded);
+                    break;
+                }
+                case DownloadStatus.Completed:
+                {
+                    Console.WriteLine("Download completed. Downloaded ad total of {0} bytes", progress.BytesDownloaded);
+                    break;
+                }
+            }
         }
 
         /// <summary>
