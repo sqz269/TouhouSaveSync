@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
-using System.Security.Policy;
-using TouhouSaveSync.Config;
 
 namespace TouhouSaveSync.Utility
 {
@@ -107,9 +104,10 @@ namespace TouhouSaveSync.Utility
             // This function sets the dictionary's value to .exe
             // so we need get the exe's parent path for save data path
             SearchDirectoryRecursive(directory, ExeNameToTouhouOldGen, itemsFound);
-            foreach ((string key, string value) in itemsFound)
+            List<string> keys = new List<string>(itemsFound.Keys);
+            foreach (string key in keys)
             {
-                string saveDirectory = Directory.GetParent(value).FullName;
+                string saveDirectory = Directory.GetParent(itemsFound[key]).FullName;
                 itemsFound[key] = saveDirectory;
             }
         }
@@ -132,20 +130,19 @@ namespace TouhouSaveSync.Utility
             // the exe name without the .exe is the save folder path at %APPDATA%
             SearchDirectoryRecursive(directory, ExeNameToTouhouNewGen, itemsFound, true);
             string touhouNewGenSavePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            foreach ((string key, string value) in itemsFound)
+            List<string> keys = new List<string>(itemsFound.Keys);
+            foreach (string key in keys)
             {
-                // Value is just the exe file name rather than full qualified path because SearchDirectoryRecursive's arg
-                // so split the exe name to get the non extension part. For example: th13.exe -> th13
-                string thName = value.Split(".")[0];
+                string thName = itemsFound[key].Split(".")[0];
                 string thSave = Path.Combine(touhouNewGenSavePath, thName);
                 itemsFound[key] = thSave;
             }
         }
 
-        public static Dictionary<String, String> GetTouhouNewGenPath(string directory)
+        public static Dictionary<String, String> GetTouhouNewGenPath(string dir)
         {
             Dictionary<String, String> newGenSavesFound = new Dictionary<string, string>();
-            SearchTouhouNewGenerationLocal(directory, newGenSavesFound);
+            SearchTouhouNewGenerationLocal(dir, newGenSavesFound);
             return newGenSavesFound;
         }
     }
