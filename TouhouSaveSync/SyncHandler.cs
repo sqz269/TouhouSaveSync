@@ -59,6 +59,7 @@ namespace TouhouSaveSync
             {
                 var remoteFile = 
                     this.m_googleDriveHandler.FindFirstFileWithName(newGenSaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
+                newGenSaveFile.GoogleDriveFileId = remoteFile.Id;
                 this.ExecuteSyncAction(newGenSaveFile, this.DetermineSyncAction(remoteFile, newGenSaveFile));
             }
 
@@ -66,6 +67,7 @@ namespace TouhouSaveSync
             {
                 var remoteFile =
                     this.m_googleDriveHandler.FindFirstFileWithName(oldGenSaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
+                oldGenSaveFile.GoogleDriveFileId = remoteFile.Id;
                 this.ExecuteSyncAction(oldGenSaveFile, this.DetermineSyncAction(remoteFile, oldGenSaveFile));
             }
         }
@@ -118,12 +120,17 @@ namespace TouhouSaveSync
                     saveFile.ZipSaveFile();
                     // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
                     // for determining which side is outdated. See DetermineSyncAction for how is the description used
-                    this.m_googleDriveHandler.Upload(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
-                        "application/zip", this.m_googleDriveSaveFolder, saveFile.GetScoreDatModifyTime().ToString());
+                    string id = this.m_googleDriveHandler.Upload(saveFile.GetRemoteFileName(),
+                        saveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
+                        saveFile.GetScoreDatModifyTime().ToString());
+                    saveFile.GoogleDriveFileId = id;
                     break;
                 }
                 case SyncAction.Push:
                 {
+                    saveFile.ZipSaveFile();
+                    this.m_googleDriveHandler.Update(saveFile.GetRemoteFileName(), saveFile.ZipSaveStoragePath,
+                        saveFile.GoogleDriveFileId, "application/zip", saveFile.GetScoreDatModifyTime().ToString());
                     break;
                 }
                 case SyncAction.Pull:
