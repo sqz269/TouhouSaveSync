@@ -13,7 +13,7 @@ namespace TouhouSaveSync.SaveFiles
         public TouhouOldGenSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath) : 
             base(gameTitle, zipSaveStoragePath, gameSavePath, TouhouGameGeneration.Old)
         {
-            this.m_gameExeName = FindTouhouSavePath.TouhouToExeName[gameTitle];
+            this.m_gameExeName = FindTouhouSavePath.TouhouToExeNameOldGen[gameTitle];
         }
 
         public override string ZipSaveFile()
@@ -54,8 +54,7 @@ namespace TouhouSaveSync.SaveFiles
             int i = 0;
             foreach ((string gameTitle, string gamePath) in data)
             {
-                string savePath = Directory.GetParent(gamePath).FullName;
-                saveFiles[i] = new TouhouOldGenSaveFile(gameTitle, Path.GetTempFileName(), savePath);
+                saveFiles[i] = new TouhouOldGenSaveFile(gameTitle, Path.GetTempFileName(), gamePath);
                 i++;
             }
 

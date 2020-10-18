@@ -2,13 +2,17 @@
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
+using System.Security.Policy;
 using TouhouSaveSync.Config;
 
 namespace TouhouSaveSync.Utility
 {
     public static class FindTouhouSavePath
     {
-        public static readonly Dictionary<String, String> TouhouToExeName = new Dictionary<string, string>
+        /// <summary>
+        /// For older generation games only (6-12)
+        /// </summary>
+        public static readonly Dictionary<String, String> TouhouToExeNameOldGen = new Dictionary<string, string>
         {
             {"Touhou06", "東方紅魔郷.exe"},
             {"Touhou07", "th07.exe"},
@@ -22,7 +26,10 @@ namespace TouhouSaveSync.Utility
             {"Touhou12", "th12.exe"}
         };
 
-        public static readonly Dictionary<String, String> ExeNameToTouhou = new Dictionary<string, string>
+        /// <summary>
+        /// For older generation games only (6-12)
+        /// </summary>
+        public static readonly Dictionary<String, String> ExeNameToTouhouOldGen = new Dictionary<string, string>
         {
             {"東方紅魔郷.exe", "Touhou06"},
             {"th07.exe", "Touhou07"},
@@ -37,28 +44,73 @@ namespace TouhouSaveSync.Utility
         };
 
         /// <summary>
+        /// For newer generation games (12.5-???)
+        /// </summary>
+        public static readonly Dictionary<String, String> TouhouToExeNameNewGen = new Dictionary<string, string>
+        {
+            {"Touhou125", "th125.exe"},
+            {"Touhou128", "th128.exe"},
+            {"Touhou13", "th13.exe"},
+            {"Touhou14", "th14.exe"},
+            {"Touhou143", "th143.exe"},
+            {"Touhou15", "th15.exe"},
+            {"Touhou16", "th16.exe"},
+            {"Touhou165", "th165.exe"},
+            {"Touhou17", "th17.exe"},
+            {"Touhou175", "th175.exe"}
+        };
+
+        /// <summary>
+        /// For newer generation games (12.5-???)
+        /// </summary>
+        public static readonly Dictionary<String, String> ExeNameToTouhouNewGen = new Dictionary<string, string>
+        {
+            {"th125.exe", "Touhou125"},
+            {"th128.exe", "Touhou128"},
+            {"th13.exe", "Touhou13"},
+            {"th14.exe", "Touhou14"},
+            {"th143.exe", "Touhou143"},
+            {"th15.exe", "Touhou15"},
+            {"th16.exe", "Touhou16"},
+            {"th165.exe", "Touhou165"},
+            {"th17.exe", "Touhou17"},
+            {"th175.exe", "Touhou175"}
+        };
+
+        private static void SearchDirectoryRecursive(string dir, Dictionary<String, String> matchFor,
+            Dictionary<String, String> itemsFound, bool useFileName=false)
+        {
+            foreach (string f in Directory.GetFiles(dir, "*.exe"))
+            {
+                string fileName = f.Split(Path.DirectorySeparatorChar)[^1];
+
+                String game = matchFor.GetValueOrDefault(fileName);
+                if (game != null)
+                {
+                    itemsFound.TryAdd(game, useFileName ? fileName : f);
+                }
+            }
+
+            foreach (string d in Directory.GetDirectories(dir))
+            {
+                SearchDirectoryRecursive(d, matchFor, itemsFound);
+            }
+        }
+
+        /// <summary>
         /// Recursively walks the directory and search for touhou exe
         /// </summary>
         /// <param name="directory">The directory to search for</param>
         /// <param name="itemsFound">A dictionary contains TouhouGame : GameExePath</param>
-        public static void SearchTouhouOldGenerationExe(string directory, Dictionary<String, String> itemsFound)
+        private static void SearchTouhouOldGenerationExe(string directory, Dictionary<String, String> itemsFound)
         {
-            foreach (string f in Directory.GetFiles(directory, "*.exe"))
+            // This function sets the dictionary's value to .exe
+            // so we need get the exe's parent path for save data path
+            SearchDirectoryRecursive(directory, ExeNameToTouhouOldGen, itemsFound);
+            foreach ((string key, string value) in itemsFound)
             {
-                // Get the filename from the path
-                string fileName = f.Split(Path.DirectorySeparatorChar)[^1];
-
-                String game = ExeNameToTouhou.GetValueOrDefault(fileName);
-                if (game != null)
-                {
-                    Console.WriteLine("Found {0}", game);
-                    itemsFound.TryAdd(game, f);
-                }
-            }
-
-            foreach (string d in Directory.GetDirectories(directory))
-            {
-                SearchTouhouOldGenerationExe(d, itemsFound);
+                string saveDirectory = Directory.GetParent(value).FullName;
+                itemsFound[key] = saveDirectory;
             }
         }
 
@@ -72,35 +124,28 @@ namespace TouhouSaveSync.Utility
         /// <summary>
         /// Walks the surface of the directory at %APPDATA%\ShanghaiAlice to find newer touhou game's save folders
         /// </summary>
+        /// <param name="directory"></param>
         /// <param name="itemsFound">The dictionary contains TouhouGame : TouhouSaveFolder</param>
-        public static void SearchTouhouNewGeneration(Dictionary<String, String> itemsFound)
+        private static void SearchTouhouNewGenerationLocal(string directory, Dictionary<String, String> itemsFound)
         {
-            string appdataRoaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string touhouSaveFolder = Path.Join(appdataRoaming, "ShanghaiAlice");
-            foreach (string d in Directory.GetDirectories(touhouSaveFolder))
+            // This function sets the dictionary's value to .exe
+            // the exe name without the .exe is the save folder path at %APPDATA%
+            SearchDirectoryRecursive(directory, ExeNameToTouhouNewGen, itemsFound, true);
+            string touhouNewGenSavePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            foreach ((string key, string value) in itemsFound)
             {
-                string dirName = d.Split(Path.DirectorySeparatorChar)[^1];
-                string thVer = dirName.Substring(2);  // This is getting the number part from the folder names. For example: th13 -> 13
-                string thName = $"Touhou{thVer}";
-                Console.WriteLine("Found {0}", thName);
-                itemsFound.Add(thName, d);
+                // Value is just the exe file name rather than full qualified path because SearchDirectoryRecursive's arg
+                // so split the exe name to get the non extension part. For example: th13.exe -> th13
+                string thName = value.Split(".")[0];
+                string thSave = Path.Combine(touhouNewGenSavePath, thName);
+                itemsFound[key] = thSave;
             }
         }
 
-        public static Dictionary<String, String> GetTouhouNewGenPath()
+        public static Dictionary<String, String> GetTouhouNewGenPath(string directory)
         {
-            Console.WriteLine("Detecting Newer Generation Games...");
             Dictionary<String, String> newGenSavesFound = new Dictionary<string, string>();
-            string appdataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string modernTouhouSavePath = Path.Join(appdataPath, "ShanghaiAlice");
-            if (!Directory.Exists(modernTouhouSavePath))
-                // TODO: Also Attempt to detect modern touhou games
-                Console.WriteLine("Did not attempt to detect any modern touhou save file as {0} does not exist", modernTouhouSavePath);
-            else
-            {
-                SearchTouhouNewGeneration(newGenSavesFound);
-            }
-
+            SearchTouhouNewGenerationLocal(directory, newGenSavesFound);
             return newGenSavesFound;
         }
     }
