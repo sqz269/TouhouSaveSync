@@ -4,7 +4,7 @@ using System.IO;
 
 namespace TouhouSaveSync.SaveFiles
 {
-    public class TouhouSaveFilesHandler
+    public class SaveFileHandler
     {
         public readonly TouhouSaveFile SaveFile;
         public readonly string ExecutableName;
@@ -14,11 +14,11 @@ namespace TouhouSaveSync.SaveFiles
         /// Delegate function that is called when the score.dat file is changed
         /// </summary>
         /// <param name="handler">The handler for the save file that was changed</param>
-        public delegate void OnSaveFileChange(TouhouSaveFilesHandler handler);
+        public delegate void OnSaveFileChange(SaveFileHandler handler);
 
         public OnSaveFileChange OnSaveFileChangeCallback;
 
-        public TouhouSaveFilesHandler(TouhouSaveFile saveFile)
+        public SaveFileHandler(TouhouSaveFile saveFile)
         {
             this.SaveFile = saveFile;
             this.ExecutableName = (this.SaveFile.Generation == TouhouGameGeneration.New
@@ -63,22 +63,22 @@ namespace TouhouSaveSync.SaveFiles
             this.OnSaveFileChangeCallback += callback;
         }
 
-        public static TouhouSaveFilesHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
+        public static SaveFileHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
             Dictionary<string, string> oldGen)
         {
-            TouhouSaveFilesHandler[] handlers = new TouhouSaveFilesHandler[newGen.Count + oldGen.Count];
+            SaveFileHandler[] handlers = new SaveFileHandler[newGen.Count + oldGen.Count];
             int i = 0;
             foreach (TouhouNewGenSaveFile newGenSaveFile in TouhouNewGenSaveFile.ToTouhouSaveFiles(newGen))
             {
                 Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", newGenSaveFile.GameTitle);
-                handlers[i] = new TouhouSaveFilesHandler(newGenSaveFile);
+                handlers[i] = new SaveFileHandler(newGenSaveFile);
                 i++;
             }
 
             foreach (TouhouOldGenSaveFile oldGenSaveFile in TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGen))
             {
                 Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", oldGenSaveFile.GameTitle);
-                handlers[i] = new TouhouSaveFilesHandler(oldGenSaveFile);
+                handlers[i] = new SaveFileHandler(oldGenSaveFile);
                 i++;
             }
 

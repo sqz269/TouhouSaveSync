@@ -18,7 +18,7 @@ namespace TouhouSaveSync
 
     public class SyncHandler
     {
-        public TouhouSaveFilesHandler[] SaveFiles { get; private set; }
+        public SaveFileHandler[] SaveFiles { get; private set; }
 
         private readonly GoogleDriveHandler m_googleDriveHandler;
 
@@ -34,7 +34,7 @@ namespace TouhouSaveSync
         /// <br></br>
         /// Use hash set because it only allows unique items
         /// </summary>
-        private readonly HashSet<TouhouSaveFilesHandler> m_syncQueue = new HashSet<TouhouSaveFilesHandler>();
+        private readonly HashSet<SaveFileHandler> m_syncQueue = new HashSet<SaveFileHandler>();
 
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
@@ -57,7 +57,7 @@ namespace TouhouSaveSync
             Console.WriteLine("Scanning completed. Found a total of {0} games", oldGenGamesFound.Count + newGenGamesFound.Count);
 
             Console.WriteLine("Pre-Processing Game Save Folders");
-            this.SaveFiles = TouhouSaveFilesHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
+            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
 
             this.RegisterSaveFileChangeHandlers();
         }
@@ -71,7 +71,7 @@ namespace TouhouSaveSync
 
         private void InitialSync()
         {
-            foreach (TouhouSaveFilesHandler handler in this.SaveFiles)
+            foreach (SaveFileHandler handler in this.SaveFiles)
             {
                 // TODO: Cache the file ID
                 var remoteFile =
@@ -95,13 +95,13 @@ namespace TouhouSaveSync
 
         private void RegisterSaveFileChangeHandlers()
         {
-            foreach (TouhouSaveFilesHandler handler in this.SaveFiles)
+            foreach (SaveFileHandler handler in this.SaveFiles)
             {
                 handler.RegisterOnSaveFileChangeCallbackExternal(this.OnSaveFileChanged);
             }
         }
 
-        private void OnSaveFileChanged(TouhouSaveFilesHandler handler)
+        private void OnSaveFileChanged(SaveFileHandler handler)
         {
             this.m_syncQueue.Add(handler);
         }
@@ -111,14 +111,14 @@ namespace TouhouSaveSync
         /// </summary>
         /// <param name="handler"></param>
         /// <returns></returns>
-        public SyncAction DetermineSyncAction(TouhouSaveFilesHandler handler)
+        public SyncAction DetermineSyncAction(SaveFileHandler handler)
         {
             var remoteFile =
                 this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
             return DetermineSyncAction(remoteFile, handler);
         }
 
-        private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, TouhouSaveFilesHandler saveHandler)
+        private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, SaveFileHandler saveHandler)
         {
             if (remoteFile == null)
                 return SyncAction.Create;
@@ -156,7 +156,7 @@ namespace TouhouSaveSync
             return timeDifference > 0 ? SyncAction.Push : SyncAction.Pull;
         }
 
-        private void ExecuteSyncAction(TouhouSaveFilesHandler saveHandler, SyncAction action)
+        private void ExecuteSyncAction(SaveFileHandler saveHandler, SyncAction action)
         {
             Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.SaveFile.GetRemoteFileName());
             switch (action)
@@ -190,7 +190,7 @@ namespace TouhouSaveSync
         /// Should Only be used if there is no previous saves
         /// </summary>
         /// <param name="saveHandler"></param>
-        public void CreateSaves(TouhouSaveFilesHandler saveHandler)
+        public void CreateSaves(SaveFileHandler saveHandler)
         {
             saveHandler.SaveFile.ZipSaveFile();
             // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
@@ -205,7 +205,7 @@ namespace TouhouSaveSync
         /// Sync this PC's save with the cloud save,
         /// will overwrite local save files
         /// </summary>
-        public void PullSaves(TouhouSaveFilesHandler saveHandler)
+        public void PullSaves(SaveFileHandler saveHandler)
         {
             this.m_googleDriveHandler.Download(saveHandler.SaveFile.GoogleDriveFileId,
                 saveHandler.SaveFile.ZipSaveStoragePath);
@@ -216,7 +216,7 @@ namespace TouhouSaveSync
         /// Syncs the cloud save with this PC's save
         /// Overwrite cloud files
         /// </summary>
-        public void PushSaves(TouhouSaveFilesHandler saveHandler)
+        public void PushSaves(SaveFileHandler saveHandler)
         {
             saveHandler.SaveFile.ZipSaveFile();
             this.m_googleDriveHandler.Update(saveHandler.SaveFile.GetRemoteFileName(),
@@ -227,7 +227,7 @@ namespace TouhouSaveSync
 
         private void PollQueue()
         {
-            foreach (TouhouSaveFilesHandler handler in this.m_syncQueue)
+            foreach (SaveFileHandler handler in this.m_syncQueue)
             {
                 if (ProcessUtility.IsProcessActive(handler.ExecutableName))
                 {
