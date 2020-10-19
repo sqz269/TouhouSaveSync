@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using TouhouSaveSync.GoogleDrive;
 
 namespace TouhouSaveSync.SaveFiles
 {
@@ -8,7 +10,10 @@ namespace TouhouSaveSync.SaveFiles
     {
         public readonly TouhouSaveFile SaveFile;
         public readonly string ExecutableName;
+
         private FileSystemWatcher m_fileWatcher;
+        private readonly GoogleDriveHandler m_googleDriveHandler;
+        private readonly string m_googleDriveSaveFolder;
 
         /// <summary>
         /// Delegate function that is called when the score.dat file is changed
@@ -18,9 +23,11 @@ namespace TouhouSaveSync.SaveFiles
 
         public OnSaveFileChange OnSaveFileChangeCallback;
 
-        public SaveFileHandler(TouhouSaveFile saveFile)
+        public SaveFileHandler(TouhouSaveFile saveFile, GoogleDriveHandler driveHandler, string parentFolder)
         {
             this.SaveFile = saveFile;
+            this.m_googleDriveHandler = driveHandler;
+            this.m_googleDriveSaveFolder = parentFolder;
             this.ExecutableName = (this.SaveFile.Generation == TouhouGameGeneration.New
                 ? FindTouhouSavePath.TouhouToExeNameNewGen[this.SaveFile.GameTitle]
                 : FindTouhouSavePath.TouhouToExeNameOldGen[this.SaveFile.GameTitle]).Split(".")[0];
@@ -63,22 +70,62 @@ namespace TouhouSaveSync.SaveFiles
             this.OnSaveFileChangeCallback += callback;
         }
 
+        // TODO: move all the SyncAction method into saveHandler?
+        /// <summary>
+        /// Upload this PC's save to the google drive.
+        /// <br></br>
+        /// Should Only be used if there is no previous saves
+        /// </summary>
+        /// <param name="saveHandler"></param>
+        public void CreateSaves()
+        {
+            this.SaveFile.ZipSaveFile();
+            // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
+            // for determining which side is outdated. See DetermineSyncAction for how is the description used
+            string id = this.m_googleDriveHandler.Upload(this.SaveFile.GetRemoteFileName(),
+                this.SaveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
+                this.SaveFile.GetScoreDatModifyTime().ToString());
+            this.SaveFile.GoogleDriveFileId = id;
+        }
+
+        /// <summary>
+        /// Sync this PC's save with the cloud save,
+        /// will overwrite local save files
+        /// </summary>
+        public void PullSaves()
+        {
+            this.m_googleDriveHandler.Download(this.SaveFile.GoogleDriveFileId, this.SaveFile.ZipSaveStoragePath);
+            this.SaveFile.LoadZippedSaveFile();
+        }
+
+        /// <summary>
+        /// Syncs the cloud save with this PC's save
+        /// Overwrite cloud files
+        /// </summary>
+        public void PushSaves()
+        {
+            this.SaveFile.ZipSaveFile();
+            this.m_googleDriveHandler.Update(this.SaveFile.GetRemoteFileName(), this.SaveFile.ZipSaveStoragePath,
+                this.SaveFile.GoogleDriveFileId, "application/zip", this.SaveFile.GetScoreDatModifyTime().ToString());
+        }
+
+
         public static SaveFileHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
-            Dictionary<string, string> oldGen)
+            Dictionary<string, string> oldGen, GoogleDriveHandler driveHandler, string parentFolder)
         {
             SaveFileHandler[] handlers = new SaveFileHandler[newGen.Count + oldGen.Count];
             int i = 0;
             foreach (TouhouNewGenSaveFile newGenSaveFile in TouhouNewGenSaveFile.ToTouhouSaveFiles(newGen))
             {
                 Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", newGenSaveFile.GameTitle);
-                handlers[i] = new SaveFileHandler(newGenSaveFile);
+                handlers[i] = new SaveFileHandler(newGenSaveFile, driveHandler, parentFolder);
                 i++;
             }
 
             foreach (TouhouOldGenSaveFile oldGenSaveFile in TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGen))
             {
                 Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", oldGenSaveFile.GameTitle);
-                handlers[i] = new SaveFileHandler(oldGenSaveFile);
+                handlers[i] = new SaveFileHandler(oldGenSaveFile, driveHandler, parentFolder);
                 i++;
             }
 

@@ -39,10 +39,10 @@ namespace TouhouSaveSync
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
             this.m_googleDriveHandler = googleDriveHandler;
-            Console.WriteLine("Scanning for save directories");
-            this.InitSaveFiles();
             Console.WriteLine("Getting Drive Folder ID for folder with name: TouhouSaveSync");
             this.InitGoogleDrive();
+            Console.WriteLine("Scanning for save directories");
+            this.InitSaveFiles();
             Console.WriteLine("Starting Initial Sync");
             this.InitialSync();
             Console.WriteLine("Initial Sync Completed");
@@ -57,7 +57,8 @@ namespace TouhouSaveSync
             Console.WriteLine("Scanning completed. Found a total of {0} games", oldGenGamesFound.Count + newGenGamesFound.Count);
 
             Console.WriteLine("Pre-Processing Game Save Folders");
-            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound);
+            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound,
+                this.m_googleDriveHandler, this.m_googleDriveSaveFolder);
 
             this.RegisterSaveFileChangeHandlers();
         }
@@ -163,17 +164,17 @@ namespace TouhouSaveSync
             {
                 case SyncAction.Create:
                 {
-                    this.CreateSaves(saveHandler);
+                    saveHandler.CreateSaves();
                     break;
                 }
                 case SyncAction.Push:
                 {
-                    this.PushSaves(saveHandler);
+                    saveHandler.PushSaves();
                     break;
                 }
                 case SyncAction.Pull:
                 {
-                    this.PullSaves(saveHandler);
+                    saveHandler.PullSaves();
                     break;
                 }
                 case SyncAction.None:
@@ -181,48 +182,6 @@ namespace TouhouSaveSync
                     break;
                 }
             }
-        }
-
-        // TODO: move all the SyncAction method into saveHandler?
-        /// <summary>
-        /// Upload this PC's save to the google drive.
-        /// <br></br>
-        /// Should Only be used if there is no previous saves
-        /// </summary>
-        /// <param name="saveHandler"></param>
-        public void CreateSaves(SaveFileHandler saveHandler)
-        {
-            saveHandler.SaveFile.ZipSaveFile();
-            // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
-            // for determining which side is outdated. See DetermineSyncAction for how is the description used
-            string id = this.m_googleDriveHandler.Upload(saveHandler.SaveFile.GetRemoteFileName(),
-                saveHandler.SaveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
-                saveHandler.SaveFile.GetScoreDatModifyTime().ToString());
-            saveHandler.SaveFile.GoogleDriveFileId = id;
-        }
-
-        /// <summary>
-        /// Sync this PC's save with the cloud save,
-        /// will overwrite local save files
-        /// </summary>
-        public void PullSaves(SaveFileHandler saveHandler)
-        {
-            this.m_googleDriveHandler.Download(saveHandler.SaveFile.GoogleDriveFileId,
-                saveHandler.SaveFile.ZipSaveStoragePath);
-            saveHandler.SaveFile.LoadZippedSaveFile();
-        }
-
-        /// <summary>
-        /// Syncs the cloud save with this PC's save
-        /// Overwrite cloud files
-        /// </summary>
-        public void PushSaves(SaveFileHandler saveHandler)
-        {
-            saveHandler.SaveFile.ZipSaveFile();
-            this.m_googleDriveHandler.Update(saveHandler.SaveFile.GetRemoteFileName(),
-                saveHandler.SaveFile.ZipSaveStoragePath,
-                saveHandler.SaveFile.GoogleDriveFileId, "application/zip",
-                saveHandler.SaveFile.GetScoreDatModifyTime().ToString());
         }
 
         private void PollQueue()
