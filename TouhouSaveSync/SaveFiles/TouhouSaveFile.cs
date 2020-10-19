@@ -109,6 +109,9 @@ namespace TouhouSaveSync.SaveFiles
         /// <returns>The MD5 Checksum of the newly created zip file</returns>
         public abstract string ZipSaveFile();
 
+        /// <summary>
+        /// Extract the zip file at ZipSaveStoragePath to GameSavePath
+        /// </summary>
         public void LoadZippedSaveFile()
         {
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Open);

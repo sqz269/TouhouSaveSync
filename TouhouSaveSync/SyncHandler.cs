@@ -29,6 +29,11 @@ namespace TouhouSaveSync
         /// </summary>
         private const int SyncThresholdTimeDifference = 60;
 
+        /// <summary>
+        /// A hash set to store saves that needs to by synced
+        /// <br></br>
+        /// Use hash set because it only allows unique items
+        /// </summary>
         private readonly HashSet<TouhouSaveFilesHandler> m_syncQueue = new HashSet<TouhouSaveFilesHandler>();
 
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
@@ -68,6 +73,7 @@ namespace TouhouSaveSync
         {
             foreach (TouhouSaveFilesHandler handler in this.SaveFiles)
             {
+                // TODO: Cache the file ID
                 var remoteFile =
                     this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
 
@@ -101,7 +107,7 @@ namespace TouhouSaveSync
         }
 
         /// <summary>
-        /// This Method assumes the remote file exists already
+        /// Determines what to do with the local save file
         /// </summary>
         /// <param name="handler"></param>
         /// <returns></returns>

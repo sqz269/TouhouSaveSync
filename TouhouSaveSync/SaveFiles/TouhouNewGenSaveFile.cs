@@ -13,6 +13,9 @@ namespace TouhouSaveSync.SaveFiles
 
         public override string ZipSaveFile()
         {
+            // Because ZipFile.CreateFromDirectory does not attempt to overwrite the destination
+            // and will throw an error if the destination already exist
+            // so we just remove the tmp file before continuing to prevent error
             if (File.Exists(this.ZipSaveStoragePath))
                 File.Delete(this.ZipSaveStoragePath);
             ZipFile.CreateFromDirectory(this.GameSavePath, this.ZipSaveStoragePath);

@@ -99,9 +99,11 @@ namespace TouhouSaveSync.SaveFiles
 
         /// <summary>
         /// Recursively walks the directory and search for touhou exe
+        /// <br></br>
+        /// Add a element to itemsFound with The Game Title as the Key and the path of the save directory as value
         /// </summary>
         /// <param name="directory">The directory to search for</param>
-        /// <param name="itemsFound">A dictionary contains TouhouGame : GameExePath</param>
+        /// <param name="itemsFound">A dictionary contains TouhouGameName : Game Save Path</param>
         private static void SearchTouhouOldGenerationExe(string directory, Dictionary<String, String> itemsFound)
         {
             // This function sets the dictionary's value to .exe
@@ -115,6 +117,12 @@ namespace TouhouSaveSync.SaveFiles
             }
         }
 
+        /// <summary>
+        /// Recursively walks the directory and search for older generation games
+        /// </summary>
+        /// <param name="dir">The directory to walk and search for</param>
+        /// <returns>A dictionary with keys that represent the game's title (Touhou7 for example)<br></br>
+        /// And value that is the game's save path</returns>
         public static Dictionary<String, String> GetTouhouOldGenPath(string dir)
         {
             Dictionary<String, String> itemsFound = new Dictionary<string, string>();
@@ -142,6 +150,19 @@ namespace TouhouSaveSync.SaveFiles
             }
         }
 
+        /// <summary>
+        /// Recursively walks the directory and search for newer generation games
+        /// <br></br>
+        /// Note: The save path is produced by guessing the path based on the exe file name
+        /// <br></br>
+        /// For example: if the exe name is th17.exe,
+        /// the prediction will extract th17 combine that with %APPDATA%\ShanghaiAlice
+        /// to produce the save directory, the save directory might be non-existent or just straight up invalid
+        /// but it works for now
+        /// </summary>
+        /// <param name="dir">The directory to walk and search for</param>
+        /// <returns>A dictionary with keys that represent the game's title (Touhou14 for example)<br></br>
+        /// And value that is the game's save path (At %APPDATA%\ShanghaiAlice)</returns>
         public static Dictionary<String, String> GetTouhouNewGenPath(string dir)
         {
             Dictionary<String, String> newGenSavesFound = new Dictionary<string, string>();
