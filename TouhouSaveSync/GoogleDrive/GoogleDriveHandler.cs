@@ -110,6 +110,13 @@ namespace TouhouSaveSync.GoogleDrive
             return files.Count == 0 ? null : files[0];
         }
 
+        public File GetFile(string id)
+        {
+            FilesResource.GetRequest file = this.Service.Files.Get(id);
+            file.Fields = "files(id, name, modifiedTime, description, size)";
+            return file.Execute();
+        }
+
         /// <summary>
         /// Find list of folders with name
         /// <br />

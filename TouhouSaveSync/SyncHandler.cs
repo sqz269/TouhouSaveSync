@@ -12,7 +12,6 @@ namespace TouhouSaveSync
     {
         Pull,
         Push,
-        Create,
         None
     }
 
@@ -74,23 +73,7 @@ namespace TouhouSaveSync
         {
             foreach (SaveFileHandler handler in this.SaveFiles)
             {
-                // TODO: Cache the file ID
-                var remoteFile =
-                    this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-
-                if (remoteFile != null)
-                {
-                    handler.SaveFile.GoogleDriveFileId = remoteFile.Id;
-                    Console.WriteLine("Found remote save file with id: {0}", remoteFile.Id);
-                }
-                else
-                {
-                    Console.WriteLine("Did not find a remote file under folder: {0} with name: {1}",
-                        this.m_googleDriveSaveFolder, handler.SaveFile.GetRemoteFileName());
-                }
-
-
-                this.ExecuteSyncAction(handler, this.DetermineSyncAction(remoteFile, handler));
+                this.ExecuteSyncAction(handler, this.DetermineSyncAction(handler));
             }
         }
 
@@ -116,14 +99,11 @@ namespace TouhouSaveSync
         {
             var remoteFile =
                 this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-            return DetermineSyncAction(remoteFile, handler);
+            return this.DetermineSyncAction(remoteFile, handler);
         }
 
         private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, SaveFileHandler saveHandler)
         {
-            if (remoteFile == null)
-                return SyncAction.Create;
-
             double saveModifyTime = saveHandler.SaveFile.GetScoreDatModifyTime();
 
             // The remote file's Description should be set with GetScoreDatModifyTime during upload/update
@@ -151,10 +131,15 @@ namespace TouhouSaveSync
             if (Math.Abs(timeDifference) <= SyncThresholdTimeDifference)
                 return SyncAction.None;
 
+            /*if ()*/
+
             // if the time difference is a positive number,
             // that means the current save file is x seconds ahead of google drive save
             // which then we need to push the current save to the cloud
-            return timeDifference > 0 ? SyncAction.Push : SyncAction.Pull;
+            if (timeDifference > 0)
+                return SyncAction.Push;
+            else
+                return SyncAction.Pull;
         }
 
         private void ExecuteSyncAction(SaveFileHandler saveHandler, SyncAction action)
@@ -162,11 +147,6 @@ namespace TouhouSaveSync
             Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.SaveFile.GetRemoteFileName());
             switch (action)
             {
-                case SyncAction.Create:
-                {
-                    saveHandler.CreateSaves();
-                    break;
-                }
                 case SyncAction.Push:
                 {
                     saveHandler.PushSaves();

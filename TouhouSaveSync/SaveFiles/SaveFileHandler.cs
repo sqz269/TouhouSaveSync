@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices;
 using TouhouSaveSync.GoogleDrive;
 
 namespace TouhouSaveSync.SaveFiles
@@ -10,6 +9,38 @@ namespace TouhouSaveSync.SaveFiles
     {
         public readonly TouhouSaveFile SaveFile;
         public readonly string ExecutableName;
+
+        #region SaveSizeRegion
+
+        /// <summary>
+        /// Indicates if a save file is changed since last access of
+        /// SaveSize property
+        /// </summary>
+        private bool m_saveZipChangedSinceLastAccess;
+
+        // ReSharper disable once InconsistentNaming
+        // Backing field of SaveSize
+        private long _saveSize;
+        public long SaveSize
+        {
+            get
+            {
+                if (!this.m_saveZipChangedSinceLastAccess)
+                    return this._saveSize;
+                this._saveSize = this.GetSaveZipFileSize();
+                this.m_saveZipChangedSinceLastAccess = false;
+                return this._saveSize;
+            }
+            private set => this._saveSize = value;
+        }
+
+        private bool m_remoteSaveChangedSinceLastAccess;
+        private long _remoteSaveSize;
+        public long RemoteSaveSize;
+
+        #endregion
+
+        public string GoogleDriveFileId { get; private set; }
 
         private FileSystemWatcher m_fileWatcher;
         private readonly GoogleDriveHandler m_googleDriveHandler;
@@ -28,9 +59,11 @@ namespace TouhouSaveSync.SaveFiles
             this.SaveFile = saveFile;
             this.m_googleDriveHandler = driveHandler;
             this.m_googleDriveSaveFolder = parentFolder;
+            this.m_saveZipChangedSinceLastAccess = true;
             this.ExecutableName = (this.SaveFile.Generation == TouhouGameGeneration.New
                 ? FindTouhouSavePath.TouhouToExeNameNewGen[this.SaveFile.GameTitle]
                 : FindTouhouSavePath.TouhouToExeNameOldGen[this.SaveFile.GameTitle]).Split(".")[0];
+            this.GoogleDriveFileId = this.GetRemoteSaveFileId();
             this.RegisterFileSystemWatcher();
         }
 
@@ -58,6 +91,7 @@ namespace TouhouSaveSync.SaveFiles
         private void OnSaveFileChangeFromWatch(object sender, FileSystemEventArgs e)
         {
             Console.WriteLine($"File: {e.FullPath} changed. Type: {e.ChangeType}");
+            this.m_saveZipChangedSinceLastAccess = true;
             this.OnSaveFileChangeCallback?.Invoke(this);
         }
 
@@ -70,14 +104,41 @@ namespace TouhouSaveSync.SaveFiles
             this.OnSaveFileChangeCallback += callback;
         }
 
-        // TODO: move all the SyncAction method into saveHandler?
+        private string GetRemoteSaveFileId()
+        {
+            Google.Apis.Drive.v3.Data.File file = this.m_googleDriveHandler.FindFirstFileWithName(
+                this.SaveFile.GetRemoteFileName(),
+                this.m_googleDriveSaveFolder);
+            if (file == null)
+                return this.CreateSaves();
+            return file.Id;
+        }
+
+        /*public long GetRemoteSaveFileSize()
+        {
+
+        }*/
+
+        /// <summary>
+        /// Get the size of the zipped save files
+        /// <br></br>
+        /// Note: This function call might be expensive as it invokes SaveFile.ZipSaveFile,
+        /// If you want to regularly access the Zipped save size, use this.SaveSize instead
+        /// </summary>
+        /// <returns></returns>
+        public long GetSaveZipFileSize()
+        {
+            this.SaveFile.ZipSaveFile();
+            return new FileInfo(this.SaveFile.ZipSaveStoragePath).Length;
+        }
+
         /// <summary>
         /// Upload this PC's save to the google drive.
         /// <br></br>
         /// Should Only be used if there is no previous saves
         /// </summary>
         /// <param name="saveHandler"></param>
-        public void CreateSaves()
+        public string CreateSaves()
         {
             this.SaveFile.ZipSaveFile();
             // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
@@ -85,7 +146,7 @@ namespace TouhouSaveSync.SaveFiles
             string id = this.m_googleDriveHandler.Upload(this.SaveFile.GetRemoteFileName(),
                 this.SaveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
                 this.SaveFile.GetScoreDatModifyTime().ToString());
-            this.SaveFile.GoogleDriveFileId = id;
+            return id;
         }
 
         /// <summary>
@@ -94,7 +155,7 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public void PullSaves()
         {
-            this.m_googleDriveHandler.Download(this.SaveFile.GoogleDriveFileId, this.SaveFile.ZipSaveStoragePath);
+            this.m_googleDriveHandler.Download(this.GoogleDriveFileId, this.SaveFile.ZipSaveStoragePath);
             this.SaveFile.LoadZippedSaveFile();
         }
 
@@ -106,9 +167,8 @@ namespace TouhouSaveSync.SaveFiles
         {
             this.SaveFile.ZipSaveFile();
             this.m_googleDriveHandler.Update(this.SaveFile.GetRemoteFileName(), this.SaveFile.ZipSaveStoragePath,
-                this.SaveFile.GoogleDriveFileId, "application/zip", this.SaveFile.GetScoreDatModifyTime().ToString());
+                this.GoogleDriveFileId, "application/zip", this.SaveFile.GetScoreDatModifyTime().ToString());
         }
-
 
         public static SaveFileHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
             Dictionary<string, string> oldGen, GoogleDriveHandler driveHandler, string parentFolder)

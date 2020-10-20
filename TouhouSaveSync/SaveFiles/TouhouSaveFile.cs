@@ -18,8 +18,6 @@ namespace TouhouSaveSync.SaveFiles
         public readonly string ZipSaveStoragePath;
         public readonly TouhouGameGeneration Generation;
 
-        public string GoogleDriveFileId;
-
         protected TouhouSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath, TouhouGameGeneration generation)
         {
             this.GameTitle = gameTitle;
