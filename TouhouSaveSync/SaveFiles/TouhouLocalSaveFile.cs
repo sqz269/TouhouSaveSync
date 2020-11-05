@@ -2,6 +2,7 @@
 using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
+using System.Security.Permissions;
 
 namespace TouhouSaveSync.SaveFiles
 {
@@ -11,14 +12,23 @@ namespace TouhouSaveSync.SaveFiles
         Old
     }
 
-    public abstract class TouhouSaveFile
+    public struct SaveFileMetadata
+    {
+        public string Checksum;
+        public double ZipLastMod;
+        public double ZipSize;
+        public double DatLastMod;
+        public double DatSize;
+    }
+
+    public abstract class TouhouLocalSaveFile
     {
         public readonly string GameTitle;
         public readonly string GameSavePath;
         public readonly string ZipSaveStoragePath;
         public readonly TouhouGameGeneration Generation;
 
-        protected TouhouSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath, TouhouGameGeneration generation)
+        protected TouhouLocalSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath, TouhouGameGeneration generation)
         {
             this.GameTitle = gameTitle;
             this.ZipSaveStoragePath = zipSaveStoragePath;
@@ -68,13 +78,18 @@ namespace TouhouSaveSync.SaveFiles
             return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
         }
 
-        /// <summary>
-        /// Get the name of the save file that should be stored as in google drive
-        /// </summary>
-        /// <returns>The name to store the save file as (Same as this.GameTitle)</returns>
-        public string GetRemoteFileName()
+        public string GetScorePath()
         {
-            return this.GameTitle;
+            foreach (string f in Directory.GetFiles(this.GameSavePath, "*.dat"))
+            {
+                string filename = f.Split(Path.DirectorySeparatorChar)[^1];
+                if (filename.StartsWith("score"))
+                {
+                    return filename;
+                }
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -85,14 +100,21 @@ namespace TouhouSaveSync.SaveFiles
         /// <returns>A double representing seconds after 1970/1/1</returns>
         public double GetScoreDatModifyTime()
         {
-            foreach (string f in Directory.GetFiles(this.GameSavePath, "*.dat"))
+            string f = GetScorePath();
+            if (f == null)
             {
-                string filename = f.Split(Path.DirectorySeparatorChar)[^1];
-                if (filename.StartsWith("score"))
-                {
-                    DateTime dateTime = File.GetLastWriteTime(f);
-                    return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
-                }
+                DateTime dateTime = File.GetLastWriteTime(f);
+                return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
+            }
+            return -1;
+        }
+
+        public double GetScoreDatSize()
+        {
+            string f = GetScorePath();
+            if (f == null)
+            {
+                return new FileInfo(f).Length;
             }
 
             return -1;
@@ -105,7 +127,7 @@ namespace TouhouSaveSync.SaveFiles
         /// To get the zip file's path, simply access ZipSaveStoragePath of the instance
         /// </summary>
         /// <returns>The MD5 Checksum of the newly created zip file</returns>
-        public abstract string ZipSaveFile();
+        public abstract SaveFileMetadata ZipSaveFile();
 
         /// <summary>
         /// Extract the zip file at ZipSaveStoragePath to GameSavePath

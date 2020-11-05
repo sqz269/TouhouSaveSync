@@ -6,17 +6,17 @@ using TouhouSaveSync.Utility;
 
 namespace TouhouSaveSync.SaveFiles
 {
-    public sealed class TouhouOldGenSaveFile : TouhouSaveFile
+    public sealed class TouhouLocalOldGenSaveFile : TouhouLocalSaveFile
     {
         private readonly string m_gameExeName;
 
-        public TouhouOldGenSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath) : 
+        public TouhouLocalOldGenSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath) : 
             base(gameTitle, zipSaveStoragePath, gameSavePath, TouhouGameGeneration.Old)
         {
             this.m_gameExeName = FindTouhouSavePath.TouhouToExeNameOldGen[gameTitle];
         }
 
-        public override string ZipSaveFile()
+        public override SaveFileMetadata ZipSaveFile()
         {
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Create);
             using ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Create);
@@ -45,16 +45,27 @@ namespace TouhouSaveSync.SaveFiles
                 archive.CreateEntryFromDirectory(replayFolderPath, "replay");
             archive.Dispose();  // We need to stop the ZipArchive from accessing the file before Generating a checksum
 
-            return this.GenerateCheckSumForZipFile();
+            string checksum = GenerateCheckSumForZipFile();
+            double datSize = GetScoreDatSize();
+            double zipSize = new FileInfo(ZipSaveStoragePath).Length;
+
+            return new SaveFileMetadata()
+            {
+                Checksum = checksum,
+                DatLastMod = GetScoreDatModifyTime(),
+                ZipLastMod = GetZipSaveFileModifyTime(),
+                DatSize = datSize,
+                ZipSize = zipSize
+            };
         }
 
-        public static TouhouOldGenSaveFile[] ToTouhouSaveFiles(Dictionary<string, string> data)
+        public static TouhouLocalSaveFile[] ToTouhouSaveFiles(Dictionary<string, string> data)
         {
-            TouhouOldGenSaveFile[] saveFiles = new TouhouOldGenSaveFile[data.Count];
+            TouhouLocalSaveFile[] saveFiles = new TouhouLocalSaveFile[data.Count];
             int i = 0;
             foreach ((string gameTitle, string gamePath) in data)
             {
-                saveFiles[i] = new TouhouOldGenSaveFile(gameTitle, Path.GetTempFileName(), gamePath);
+                saveFiles[i] = new TouhouLocalOldGenSaveFile(gameTitle, Path.GetTempFileName(), gamePath);
                 i++;
             }
 

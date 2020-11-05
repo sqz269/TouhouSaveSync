@@ -7,7 +7,8 @@ namespace TouhouSaveSync.SaveFiles
 {
     public class SaveFileHandler
     {
-        public readonly TouhouSaveFile SaveFile;
+        public readonly TouhouLocalSaveFile LocalSaveFile;
+        public readonly TouhouRemoteSaveFile RemoteSaveFile;
         public readonly string ExecutableName;
 
         #region SaveSizeRegion
@@ -33,17 +34,10 @@ namespace TouhouSaveSync.SaveFiles
             }
             private set => this._saveSize = value;
         }
-
-        private bool m_remoteSaveChangedSinceLastAccess;
-        private long _remoteSaveSize;
-        public long RemoteSaveSize;
-
         #endregion
 
-        public string GoogleDriveFileId { get; private set; }
-
         private FileSystemWatcher m_fileWatcher;
-        private readonly GoogleDriveHandler m_googleDriveHandler;
+
         private readonly string m_googleDriveSaveFolder;
 
         /// <summary>
@@ -54,26 +48,24 @@ namespace TouhouSaveSync.SaveFiles
 
         public OnSaveFileChange OnSaveFileChangeCallback;
 
-        public SaveFileHandler(TouhouSaveFile saveFile, GoogleDriveHandler driveHandler, string parentFolder)
+        public SaveFileHandler(TouhouRemoteSaveFile remoteSaveFile)
         {
-            this.SaveFile = saveFile;
-            this.m_googleDriveHandler = driveHandler;
-            this.m_googleDriveSaveFolder = parentFolder;
+            this.LocalSaveFile = remoteSaveFile.LocalSaveFile;
+            this.RemoteSaveFile = remoteSaveFile;
             this.m_saveZipChangedSinceLastAccess = true;
-            this.ExecutableName = (this.SaveFile.Generation == TouhouGameGeneration.New
-                ? FindTouhouSavePath.TouhouToExeNameNewGen[this.SaveFile.GameTitle]
-                : FindTouhouSavePath.TouhouToExeNameOldGen[this.SaveFile.GameTitle]).Split(".")[0];
-            this.GoogleDriveFileId = this.GetRemoteSaveFileId();
+            this.ExecutableName = (this.LocalSaveFile.Generation == TouhouGameGeneration.New
+                ? FindTouhouSavePath.TouhouToExeNameNewGen[this.LocalSaveFile.GameTitle]
+                : FindTouhouSavePath.TouhouToExeNameOldGen[this.LocalSaveFile.GameTitle]).Split(".")[0];
             this.RegisterFileSystemWatcher();
         }
 
         /// <summary>
-        /// Watch the SaveFile.GameSavePath directory for any changes in .dat file
+        /// Watch the LocalSaveFile.GameSavePath directory for any changes in .dat file
         /// and set the call back for changes to OnSaveFileChangeFromWatch
         /// </summary>
         private void RegisterFileSystemWatcher()
         {
-            this.m_fileWatcher = new FileSystemWatcher(this.SaveFile.GameSavePath)
+            this.m_fileWatcher = new FileSystemWatcher(this.LocalSaveFile.GameSavePath)
             {
                 NotifyFilter = NotifyFilters.LastWrite, 
                 Filter = "*.dat" // Too lazy to actually find the score.dat file and watch, so we're just watch the whole dir
@@ -104,89 +96,26 @@ namespace TouhouSaveSync.SaveFiles
             this.OnSaveFileChangeCallback += callback;
         }
 
-        private string GetRemoteSaveFileId()
-        {
-            Google.Apis.Drive.v3.Data.File file = this.m_googleDriveHandler.FindFirstFileWithName(
-                this.SaveFile.GetRemoteFileName(),
-                this.m_googleDriveSaveFolder);
-            if (file == null)
-                return this.CreateSaves();
-            return file.Id;
-        }
-
-        /*public long GetRemoteSaveFileSize()
-        {
-
-        }*/
-
         /// <summary>
         /// Get the size of the zipped save files
         /// <br></br>
-        /// Note: This function call might be expensive as it invokes SaveFile.ZipSaveFile,
+        /// Note: This function call might be expensive as it invokes LocalSaveFile.ZipSaveFile,
         /// If you want to regularly access the Zipped save size, use this.SaveSize instead
         /// </summary>
         /// <returns></returns>
         public long GetSaveZipFileSize()
         {
-            this.SaveFile.ZipSaveFile();
-            return new FileInfo(this.SaveFile.ZipSaveStoragePath).Length;
+            this.LocalSaveFile.ZipSaveFile();
+            return new FileInfo(this.LocalSaveFile.ZipSaveStoragePath).Length;
         }
 
-        /// <summary>
-        /// Upload this PC's save to the google drive.
-        /// <br></br>
-        /// Should Only be used if there is no previous saves
-        /// </summary>
-        /// <param name="saveHandler"></param>
-        public string CreateSaves()
+        public static SaveFileHandler[] ToTouhouSaveFilesHandlers(TouhouRemoteSaveFile[] remoteSaveFiles)
         {
-            this.SaveFile.ZipSaveFile();
-            // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
-            // for determining which side is outdated. See DetermineSyncAction for how is the description used
-            string id = this.m_googleDriveHandler.Upload(this.SaveFile.GetRemoteFileName(),
-                this.SaveFile.ZipSaveStoragePath, "application/zip", this.m_googleDriveSaveFolder,
-                this.SaveFile.GetScoreDatModifyTime().ToString());
-            return id;
-        }
-
-        /// <summary>
-        /// Sync this PC's save with the cloud save,
-        /// will overwrite local save files
-        /// </summary>
-        public void PullSaves()
-        {
-            this.m_googleDriveHandler.Download(this.GoogleDriveFileId, this.SaveFile.ZipSaveStoragePath);
-            this.SaveFile.LoadZippedSaveFile();
-        }
-
-        /// <summary>
-        /// Syncs the cloud save with this PC's save
-        /// Overwrite cloud files
-        /// </summary>
-        public void PushSaves()
-        {
-            this.SaveFile.ZipSaveFile();
-            this.m_googleDriveHandler.Update(this.SaveFile.GetRemoteFileName(), this.SaveFile.ZipSaveStoragePath,
-                this.GoogleDriveFileId, "application/zip", this.SaveFile.GetScoreDatModifyTime().ToString());
-        }
-
-        public static SaveFileHandler[] ToTouhouSaveFilesHandlers(Dictionary<string, string> newGen,
-            Dictionary<string, string> oldGen, GoogleDriveHandler driveHandler, string parentFolder)
-        {
-            SaveFileHandler[] handlers = new SaveFileHandler[newGen.Count + oldGen.Count];
+            SaveFileHandler[] handlers = new SaveFileHandler[remoteSaveFiles.Length];
             int i = 0;
-            foreach (TouhouNewGenSaveFile newGenSaveFile in TouhouNewGenSaveFile.ToTouhouSaveFiles(newGen))
+            foreach (TouhouRemoteSaveFile remoteSaveFile in remoteSaveFiles)
             {
-                Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", newGenSaveFile.GameTitle);
-                handlers[i] = new SaveFileHandler(newGenSaveFile, driveHandler, parentFolder);
-                i++;
-            }
-
-            foreach (TouhouOldGenSaveFile oldGenSaveFile in TouhouOldGenSaveFile.ToTouhouSaveFiles(oldGen))
-            {
-                Console.WriteLine("Instantiating TouhouSaveFileHandler for: {0}", oldGenSaveFile.GameTitle);
-                handlers[i] = new SaveFileHandler(oldGenSaveFile, driveHandler, parentFolder);
-                i++;
+                handlers[i] = new SaveFileHandler(remoteSaveFile);
             }
 
             return handlers;

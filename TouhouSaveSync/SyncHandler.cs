@@ -55,9 +55,25 @@ namespace TouhouSaveSync
             Dictionary<String, String> newGenGamesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
             Console.WriteLine("Scanning completed. Found a total of {0} games", oldGenGamesFound.Count + newGenGamesFound.Count);
 
+            TouhouLocalSaveFile[] newGenSaveFiles = TouhouLocalNewGenSaveFile.ToTouhouSaveFiles(newGenGamesFound);
+            TouhouLocalSaveFile[] oldGenSaveFiles = TouhouLocalOldGenSaveFile.ToTouhouSaveFiles(oldGenGamesFound);
+
+            TouhouRemoteSaveFile[] remoteSaveFiles = new TouhouRemoteSaveFile[newGenSaveFiles.Length + oldGenSaveFiles.Length];
+            int i = 0;
+            foreach (TouhouRemoteSaveFile remoteSaveFile in TouhouRemoteSaveFile.ToTouhouRemoteSaveFiles(newGenSaveFiles, m_googleDriveHandler, m_googleDriveSaveFolder))
+            {
+                remoteSaveFiles[i] = remoteSaveFile;
+                i++;
+            }
+
+            foreach (TouhouRemoteSaveFile remoteSaveFile in TouhouRemoteSaveFile.ToTouhouRemoteSaveFiles(oldGenSaveFiles, m_googleDriveHandler, m_googleDriveSaveFolder))
+            {
+                remoteSaveFiles[i] = remoteSaveFile;
+                i++;
+            }
+
             Console.WriteLine("Pre-Processing Game Save Folders");
-            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(newGenGamesFound, oldGenGamesFound,
-                this.m_googleDriveHandler, this.m_googleDriveSaveFolder);
+            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(remoteSaveFiles);
 
             this.RegisterSaveFileChangeHandlers();
         }
@@ -95,35 +111,29 @@ namespace TouhouSaveSync
         /// </summary>
         /// <param name="handler"></param>
         /// <returns></returns>
-        public SyncAction DetermineSyncAction(SaveFileHandler handler)
+        private SyncAction DetermineSyncAction(SaveFileHandler handler)
         {
-            var remoteFile =
-                this.m_googleDriveHandler.FindFirstFileWithName(handler.SaveFile.GetRemoteFileName(), this.m_googleDriveSaveFolder);
-            return this.DetermineSyncAction(remoteFile, handler);
-        }
-
-        private SyncAction DetermineSyncAction(Google.Apis.Drive.v3.Data.File remoteFile, SaveFileHandler saveHandler)
-        {
-            double saveModifyTime = saveHandler.SaveFile.GetScoreDatModifyTime();
-
+            SaveFileMetadata metadata = handler.RemoteSaveFile.GetRemoteSaveFileMetaData();
+            double localModifyTime = handler.LocalSaveFile.GetScoreDatModifyTime();
             // The remote file's Description should be set with GetScoreDatModifyTime during upload/update
             // The description will be converted to a double and seen as an Unix Time stamp and compared
             // Which will be used to determine which side is out of date
-            if (remoteFile.Description == null)
-                return SyncAction.Push;
-
             double remoteModifyTime;
             try
             {
-                remoteModifyTime = Double.Parse(remoteFile.Description);
+                remoteModifyTime = metadata.ZipLastMod;
             }
-            catch (Exception)
+            catch
             {
                 Console.WriteLine("Unable to parse the file's description for last mod. Updating file");
                 return SyncAction.Push;
             }
 
-            double timeDifference = saveModifyTime - remoteModifyTime;
+            double timeDifference = localModifyTime - remoteModifyTime;
+
+            double localDatSize = handler.LocalSaveFile.GetScoreDatSize();
+            bool isSaveSizeSame = Math.Abs(localDatSize - metadata.DatSize) < 0.001;
+            bool localSaveBigger = localDatSize > metadata.DatSize;
 
             // If the time difference with the google drive are not that different
             // and we have to account for upload time and other stuff
@@ -131,30 +141,50 @@ namespace TouhouSaveSync
             if (Math.Abs(timeDifference) <= SyncThresholdTimeDifference)
                 return SyncAction.None;
 
-            /*if ()*/
-
             // if the time difference is a positive number,
             // that means the current save file is x seconds ahead of google drive save
             // which then we need to push the current save to the cloud
             if (timeDifference > 0)
+            {
+                // The remote save is bigger but the local dat is more recently updated
+                if (!isSaveSizeSame && !localSaveBigger)
+                {
+                    while (true)
+                    {
+                        string keep = InputManager.GetStringInput(
+                            "CONFLICT: The remote's score.dat is bigger, but the local score.dat is more recently updated which one to use? (1: Remote / 2: Local)");
+                        if (keep == "1")
+                        {
+                            return SyncAction.Pull;
+                        }
+
+                        if (keep == "2")
+                        {
+                            return SyncAction.Push;
+                        }
+                    }
+                }
                 return SyncAction.Push;
+            }
             else
+            {
                 return SyncAction.Pull;
+            }
         }
 
         private void ExecuteSyncAction(SaveFileHandler saveHandler, SyncAction action)
         {
-            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.SaveFile.GetRemoteFileName());
+            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.RemoteSaveFile.RemoteFileId);
             switch (action)
             {
                 case SyncAction.Push:
                 {
-                    saveHandler.PushSaves();
+                    saveHandler.RemoteSaveFile.PushSaves();
                     break;
                 }
                 case SyncAction.Pull:
                 {
-                    saveHandler.PullSaves();
+                    saveHandler.RemoteSaveFile.PullSaves();
                     break;
                 }
                 case SyncAction.None:
@@ -170,7 +200,7 @@ namespace TouhouSaveSync
             {
                 if (ProcessUtility.IsProcessActive(handler.ExecutableName))
                 {
-                    Console.WriteLine("Holding off sync for {0} because game is active", handler.SaveFile.GameTitle);
+                    Console.WriteLine("Holding off sync for {0} because game is active", handler.LocalSaveFile.GameTitle);
                 }
                 else
                 {
