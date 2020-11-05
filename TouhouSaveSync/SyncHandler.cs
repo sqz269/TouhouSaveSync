@@ -106,6 +106,26 @@ namespace TouhouSaveSync
             this.m_syncQueue.Add(handler);
         }
 
+        private SyncAction HandleConflict(bool localSaveBigger, bool localSaveRecent)
+        {
+            if (localSaveBigger && !localSaveRecent)
+            {
+                Console.WriteLine("CONFLICT: The LOCAL's score.dat is bigger, but the REMOTE score.dat is more recently updated.");
+            }
+            else if (!localSaveBigger && localSaveRecent)
+            {
+                Console.WriteLine("CONFLICT: The REMOTE's score.dat is bigger, but the LOCAL score.dat is more recently updated.");
+            }
+            while (true)
+            {
+                string keepTarget = InputManager.GetStringInput("Keep Local or Keep Remote? (1: Local, 0: Remote)");
+                if (keepTarget == "1")
+                    return SyncAction.Push;
+                else if (keepTarget == "2")
+                    return SyncAction.Pull;
+            }
+        }
+
         /// <summary>
         /// Determines what to do with the local save file
         /// </summary>
@@ -149,25 +169,16 @@ namespace TouhouSaveSync
                 // The remote save is bigger but the local dat is more recently updated
                 if (!isSaveSizeSame && !localSaveBigger)
                 {
-                    while (true)
-                    {
-                        string keep = InputManager.GetStringInput(
-                            "CONFLICT: The remote's score.dat is bigger, but the local score.dat is more recently updated which one to use? (1: Remote / 2: Local)");
-                        if (keep == "1")
-                        {
-                            return SyncAction.Pull;
-                        }
-
-                        if (keep == "2")
-                        {
-                            return SyncAction.Push;
-                        }
-                    }
+                    HandleConflict(false, true);
                 }
                 return SyncAction.Push;
             }
             else
             {
+                if (!isSaveSizeSame && localSaveBigger)
+                {
+                    HandleConflict(true, false);
+                }
                 return SyncAction.Pull;
             }
         }
