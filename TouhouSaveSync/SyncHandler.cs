@@ -17,6 +17,9 @@ namespace TouhouSaveSync
 
     public class SyncHandler
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
+
         public SaveFileHandler[] SaveFiles { get; private set; }
 
         private readonly GoogleDriveHandler m_googleDriveHandler;
@@ -38,63 +41,62 @@ namespace TouhouSaveSync
         public SyncHandler(GoogleDriveHandler googleDriveHandler)
         {
             this.m_googleDriveHandler = googleDriveHandler;
-            Console.WriteLine("Getting Drive Folder ID for folder with name: TouhouSaveSync");
             this.InitGoogleDrive();
-            Console.WriteLine("Scanning for save directories");
+
             this.InitSaveFiles();
-            Console.WriteLine("Starting Initial Sync");
+
             this.InitialSync();
-            Console.WriteLine("Initial Sync Completed");
-        }
-
-        private void InitSaveFiles()
-        {
-            Console.WriteLine("Scanning for games at: {0}", ConfigManager.GetSetting("TouhouGamesDirectory"));
-            Dictionary<String, String> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
-            // TODO: Detect and sync newer generation games that does not exist on the PC, but have save files on the drive
-            Dictionary<String, String> newGenGamesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
-            Console.WriteLine("Scanning completed. Found a total of {0} games", oldGenGamesFound.Count + newGenGamesFound.Count);
-
-            TouhouLocalSaveFile[] newGenSaveFiles = TouhouLocalNewGenSaveFile.ToTouhouSaveFiles(newGenGamesFound);
-            TouhouLocalSaveFile[] oldGenSaveFiles = TouhouLocalOldGenSaveFile.ToTouhouSaveFiles(oldGenGamesFound);
-
-            TouhouRemoteSaveFile[] remoteSaveFiles = new TouhouRemoteSaveFile[newGenSaveFiles.Length + oldGenSaveFiles.Length];
-            int i = 0;
-            foreach (TouhouRemoteSaveFile remoteSaveFile in TouhouRemoteSaveFile.ToTouhouRemoteSaveFiles(newGenSaveFiles, m_googleDriveHandler, m_googleDriveSaveFolder))
-            {
-                remoteSaveFiles[i] = remoteSaveFile;
-                i++;
-            }
-
-            foreach (TouhouRemoteSaveFile remoteSaveFile in TouhouRemoteSaveFile.ToTouhouRemoteSaveFiles(oldGenSaveFiles, m_googleDriveHandler, m_googleDriveSaveFolder))
-            {
-                remoteSaveFiles[i] = remoteSaveFile;
-                i++;
-            }
-
-            Console.WriteLine("Pre-Processing Game Save Folders");
-            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(remoteSaveFiles);
 
             this.RegisterSaveFileChangeHandlers();
         }
 
+        private void InitSaveFiles()
+        {
+            Logger.Info($"Scanning for Touhou Games at: {ConfigManager.GetSetting("TouhouGamesDirectory")}");
+            Dictionary<string, string> oldGenGamesFound = FindTouhouSavePath.GetTouhouOldGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
+            // TODO: Detect and sync newer generation games that does not exist on the PC, but have save files on the drive
+            Dictionary<string, string> newGenGamesFound = FindTouhouSavePath.GetTouhouNewGenPath(ConfigManager.GetSetting("TouhouGamesDirectory"));
+            Logger.Info($"Scanning completed. Found a total of {oldGenGamesFound.Count + newGenGamesFound.Count} games");
+
+            Logger.Info("Processing Found Games");
+
+            Logger.Trace("Instantiating Object Representation for Local Touhou Save files");
+            TouhouLocalSaveFile[] newGenSaveFiles = TouhouLocalNewGenSaveFile.ToTouhouSaveFiles(newGenGamesFound);
+            TouhouLocalSaveFile[] oldGenSaveFiles = TouhouLocalOldGenSaveFile.ToTouhouSaveFiles(oldGenGamesFound);
+            Logger.Trace("Instantiation Completed for Local Touhou Save Object Representation");
+
+            Logger.Trace("Instantiating Object Representation for Remote Touhou Save files");
+            TouhouRemoteSaveFile[] remoteSaveFiles = TouhouRemoteSaveFile.ToTouhouRemoteSaveFiles(newGenSaveFiles,
+                oldGenSaveFiles, m_googleDriveHandler, m_googleDriveSaveFolder);
+            Logger.Trace("Instantiation Completed for Remote Touhou Save Object Representation");
+
+            Logger.Trace("Instantiating Touhou Save File Wrapper");
+            this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(remoteSaveFiles);
+            Logger.Trace("Instantiation Completed for Touhou Save File Wrapper");
+        }
+
         private void InitGoogleDrive()
         {
+            Logger.Debug("Getting Drive Folder ID for folder with name: TouhouSaveSync");
             this.m_googleDriveSaveFolder =
                 this.m_googleDriveHandler.GetFolderId("TouhouSaveSync");
-            Console.WriteLine("TouhouSaveSync folder ID: {0}", this.m_googleDriveSaveFolder);
+            Logger.Debug($"Found Folder \"TouhouSaveSync\" with id: {this.m_googleDriveSaveFolder}");
+
         }
 
         private void InitialSync()
         {
+            Logger.Info("Starting Initial Sync");
             foreach (SaveFileHandler handler in this.SaveFiles)
             {
                 this.ExecuteSyncAction(handler, this.DetermineSyncAction(handler));
             }
+            Logger.Info("Initial Sync Completed");
         }
 
         private void RegisterSaveFileChangeHandlers()
         {
+            Logger.Debug("Registering On Change callback for save files");
             foreach (SaveFileHandler handler in this.SaveFiles)
             {
                 handler.RegisterOnSaveFileChangeCallbackExternal(this.OnSaveFileChanged);
@@ -133,21 +135,21 @@ namespace TouhouSaveSync
         /// <returns></returns>
         private SyncAction DetermineSyncAction(SaveFileHandler handler)
         {
-            SaveFileMetadata metadata = handler.RemoteSaveFile.GetRemoteSaveFileMetaData();
+            SaveFileMetadata metadata;
             double localModifyTime = handler.LocalSaveFile.GetScoreDatModifyTime();
-            // The remote file's Description should be set with GetScoreDatModifyTime during upload/update
-            // The description will be converted to a double and seen as an Unix Time stamp and compared
-            // Which will be used to determine which side is out of date
-            double remoteModifyTime;
+
             try
             {
-                remoteModifyTime = metadata.ZipLastMod;
+                metadata = handler.RemoteSaveFile.GetRemoteSaveFileMetaData();
             }
-            catch
+            catch (Exception e)
             {
-                Console.WriteLine("Unable to parse the file's description for last mod. Updating file");
+
+                // Logger.Warn("Unable to parse the file's description. Updating File With Local Saves");
+                Logger.Error(e, "Failed to retrieve Metadata for file");
                 return SyncAction.Push;
             }
+            double remoteModifyTime = metadata.DatLastMod; ;
 
             double timeDifference = localModifyTime - remoteModifyTime;
 
@@ -159,33 +161,42 @@ namespace TouhouSaveSync
             // and we have to account for upload time and other stuff
             // Thus, they might be the same save file
             if (Math.Abs(timeDifference) <= SyncThresholdTimeDifference)
+            {
+                Logger.Debug($"Not performing any Sync action for: {handler.LocalSaveFile.GameTitle}. Same modified time or modified time difference in acceptable range ({SyncThresholdTimeDifference}>{timeDifference})");
                 return SyncAction.None;
+            }
 
             // if the time difference is a positive number,
             // that means the current save file is x seconds ahead of google drive save
             // which then we need to push the current save to the cloud
             if (timeDifference > 0)
             {
+                Logger.Trace($"Potential Sync action: Push. Remote Save is {timeDifference} seconds behind local save");
                 // The remote save is bigger but the local dat is more recently updated
                 if (!isSaveSizeSame && !localSaveBigger)
                 {
-                    HandleConflict(false, true);
+                    Logger.Trace($"Potential Sync Action Discarded. The Remote File is {timeDifference} seconds behind, but save size is {metadata.DatSize - localDatSize} bytes larger. Requesting User Action");
+                    return HandleConflict(false, true);
                 }
+                Logger.Debug($"Performing Sync Action: Push, on {handler.LocalSaveFile.GameTitle}");
                 return SyncAction.Push;
             }
             else
             {
+                Logger.Trace($"Potential Sync action: Push. Local Save is {Math.Abs(timeDifference)} seconds behind remote save");
                 if (!isSaveSizeSame && localSaveBigger)
                 {
-                    HandleConflict(true, false);
+                    Logger.Trace($"Potential Sync Action Discarded. The Local File is {Math.Abs(timeDifference)} seconds behind, but save size is {localDatSize - metadata.DatSize} bytes larger. Requesting User Action");
+                    return HandleConflict(true, false);
                 }
+                Logger.Debug($"Performing Sync Action: Pull, on {handler.LocalSaveFile.GameTitle}");
                 return SyncAction.Pull;
             }
         }
 
         private void ExecuteSyncAction(SaveFileHandler saveHandler, SyncAction action)
         {
-            Console.WriteLine("Executing Sync Action: {0}. On: {1}", action, saveHandler.RemoteSaveFile.RemoteFileId);
+            Logger.Info($"Performing Sync Action: {action}, on {saveHandler.LocalSaveFile.GameTitle}");
             switch (action)
             {
                 case SyncAction.Push:
@@ -207,11 +218,13 @@ namespace TouhouSaveSync
 
         private void PollQueue()
         {
+            Logger.Debug("Polling Queue");
             foreach (SaveFileHandler handler in this.m_syncQueue)
             {
+                Logger.Trace($"Processing: {handler.LocalSaveFile.GameTitle}");
                 if (ProcessUtility.IsProcessActive(handler.ExecutableName))
                 {
-                    Console.WriteLine("Holding off sync for {0} because game is active", handler.LocalSaveFile.GameTitle);
+                    Logger.Info($"Holding off sync for {handler.LocalSaveFile.GameTitle} because game is active");
                 }
                 else
                 {
@@ -231,6 +244,7 @@ namespace TouhouSaveSync
         /// </summary>
         public void SyncLoop()
         {
+            Logger.Info("Entered Sync Loop");
             while (true)
             {
                 this.PollQueue();

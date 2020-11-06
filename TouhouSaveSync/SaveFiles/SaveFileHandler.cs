@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using TouhouSaveSync.GoogleDrive;
 
 namespace TouhouSaveSync.SaveFiles
 {
@@ -37,8 +35,6 @@ namespace TouhouSaveSync.SaveFiles
         #endregion
 
         private FileSystemWatcher m_fileWatcher;
-
-        private readonly string m_googleDriveSaveFolder;
 
         /// <summary>
         /// Delegate function that is called when the score.dat file is changed
@@ -82,7 +78,6 @@ namespace TouhouSaveSync.SaveFiles
         /// <param name="e"></param>
         private void OnSaveFileChangeFromWatch(object sender, FileSystemEventArgs e)
         {
-            Console.WriteLine($"File: {e.FullPath} changed. Type: {e.ChangeType}");
             this.m_saveZipChangedSinceLastAccess = true;
             this.OnSaveFileChangeCallback?.Invoke(this);
         }
@@ -116,6 +111,7 @@ namespace TouhouSaveSync.SaveFiles
             foreach (TouhouRemoteSaveFile remoteSaveFile in remoteSaveFiles)
             {
                 handlers[i] = new SaveFileHandler(remoteSaveFile);
+                i++;
             }
 
             return handlers;
