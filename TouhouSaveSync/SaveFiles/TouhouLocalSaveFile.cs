@@ -18,6 +18,11 @@ namespace TouhouSaveSync.SaveFiles
         public double ZipSize;
         public double DatLastMod;
         public double DatSize;
+
+        public override string ToString()
+        {
+            return $"CheckSum: {Checksum} | Zip Last Mod: {ZipLastMod} | Dat Last Mod: {DatLastMod}";
+        }
     }
 
     public abstract class TouhouLocalSaveFile

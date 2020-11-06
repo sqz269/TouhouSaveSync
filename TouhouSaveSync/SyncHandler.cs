@@ -46,6 +46,8 @@ namespace TouhouSaveSync
             this.InitSaveFiles();
 
             this.InitialSync();
+
+            this.RegisterSaveFileChangeHandlers();
         }
 
         private void InitSaveFiles()
@@ -71,9 +73,6 @@ namespace TouhouSaveSync
             Logger.Trace("Instantiating Touhou Save File Wrapper");
             this.SaveFiles = SaveFileHandler.ToTouhouSaveFilesHandlers(remoteSaveFiles);
             Logger.Trace("Instantiation Completed for Touhou Save File Wrapper");
-
-            Logger.Debug("Registering On Change callback for save files");
-            this.RegisterSaveFileChangeHandlers();
         }
 
         private void InitGoogleDrive()
@@ -97,6 +96,7 @@ namespace TouhouSaveSync
 
         private void RegisterSaveFileChangeHandlers()
         {
+            Logger.Debug("Registering On Change callback for save files");
             foreach (SaveFileHandler handler in this.SaveFiles)
             {
                 handler.RegisterOnSaveFileChangeCallbackExternal(this.OnSaveFileChanged);
@@ -149,7 +149,7 @@ namespace TouhouSaveSync
                 Logger.Error(e, "Failed to retrieve Metadata for file");
                 return SyncAction.Push;
             }
-            double remoteModifyTime = metadata.ZipLastMod; ;
+            double remoteModifyTime = metadata.DatLastMod; ;
 
             double timeDifference = localModifyTime - remoteModifyTime;
 
@@ -176,7 +176,7 @@ namespace TouhouSaveSync
                 if (!isSaveSizeSame && !localSaveBigger)
                 {
                     Logger.Trace($"Potential Sync Action Discarded. The Remote File is {timeDifference} seconds behind, but save size is {metadata.DatSize - localDatSize} bytes larger. Requesting User Action");
-                    HandleConflict(false, true);
+                    return HandleConflict(false, true);
                 }
                 Logger.Debug($"Performing Sync Action: Push, on {handler.LocalSaveFile.GameTitle}");
                 return SyncAction.Push;
@@ -187,7 +187,7 @@ namespace TouhouSaveSync
                 if (!isSaveSizeSame && localSaveBigger)
                 {
                     Logger.Trace($"Potential Sync Action Discarded. The Local File is {Math.Abs(timeDifference)} seconds behind, but save size is {localDatSize - metadata.DatSize} bytes larger. Requesting User Action");
-                    HandleConflict(true, false);
+                    return HandleConflict(true, false);
                 }
                 Logger.Debug($"Performing Sync Action: Pull, on {handler.LocalSaveFile.GameTitle}");
                 return SyncAction.Pull;
