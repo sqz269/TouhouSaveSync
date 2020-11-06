@@ -62,7 +62,6 @@ namespace TouhouSaveSync.GoogleDrive
                     "user",
                     CancellationToken.None,
                     new FileDataStore(this.m_tokenPath, true)).Result;
-                Console.WriteLine("Credential file saved to: " + this.m_tokenPath);
             }
 
             // Create Drive API service.
@@ -113,7 +112,7 @@ namespace TouhouSaveSync.GoogleDrive
         public File GetFile(string id)
         {
             FilesResource.GetRequest file = this.Service.Files.Get(id);
-            file.Fields = "files(id, name, modifiedTime, description, size)";
+            file.Fields = "id, name, size, description";
             return file.Execute();
         }
 

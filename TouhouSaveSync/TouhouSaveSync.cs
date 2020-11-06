@@ -1,14 +1,16 @@
-﻿using System;
+﻿#define TRACE
+
+using System;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.Utility;
-
-// TODO: Implement Logging Facility (Probably System.Diagnostics)
 
 namespace TouhouSaveSync
 {
     static class TouhouSaveSync
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
         static void FirstTimeInit()
         {
             Console.WriteLine("It looks like it's the first time the program has ran on this computer. We need a few things to get started");
@@ -20,16 +22,17 @@ namespace TouhouSaveSync
 
         static void Main(string[] args)
         {
+            LoggingHelper.ConfigureLogger();
             if (ConfigManager.GetSetting("FirstRun") == "true")
             {
                 FirstTimeInit();
                 ConfigManager.UpdateSetting("FirstRun", "false");
             }
 
-            Console.WriteLine("Initializing Google Drive API");
+            Logger.Info("Initializing Google Drive API");
             GoogleDriveHandler googleDriveHandler = 
                 new GoogleDriveHandler(ConfigManager.GetSetting("CredentialsPath"), ConfigManager.GetSetting("TokenPath"));
-            Console.WriteLine("Google Drive API Initialized");
+            Logger.Info("Google Drive Initialized");
 
             SyncHandler syncHandler = new SyncHandler(googleDriveHandler);
             syncHandler.SyncLoop();

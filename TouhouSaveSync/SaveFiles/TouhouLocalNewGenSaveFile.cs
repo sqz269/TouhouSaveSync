@@ -6,6 +6,9 @@ namespace TouhouSaveSync.SaveFiles
 {
     public sealed class TouhouLocalNewGenSaveFile : TouhouLocalSaveFile
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
+
         public TouhouLocalNewGenSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath) : 
             base(gameTitle, zipSaveStoragePath, gameSavePath, TouhouGameGeneration.New)
         {
@@ -13,6 +16,7 @@ namespace TouhouSaveSync.SaveFiles
 
         public override SaveFileMetadata ZipSaveFile()
         {
+            Logger.Debug($"Creating Zip file for {GameTitle} to {ZipSaveStoragePath}");
             // Because ZipFile.CreateFromDirectory does not attempt to overwrite the destination
             // and will throw an error if the destination already exist
             // so we just remove the tmp file before continuing to prevent error
@@ -20,6 +24,7 @@ namespace TouhouSaveSync.SaveFiles
                 File.Delete(this.ZipSaveStoragePath);
             ZipFile.CreateFromDirectory(this.GameSavePath, this.ZipSaveStoragePath);
 
+            Logger.Trace("Generating Metadata for created zip");
             string checksum = GenerateCheckSumForZipFile();
             double datSize = GetScoreDatSize();
             double zipSize = new FileInfo(ZipSaveStoragePath).Length;

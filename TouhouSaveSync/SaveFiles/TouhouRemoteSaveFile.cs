@@ -6,6 +6,8 @@ namespace TouhouSaveSync.SaveFiles
 {
     public class TouhouRemoteSaveFile
     {
+        private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
+
         private readonly GoogleDriveHandler m_googleDriveHandler;
         private readonly string m_remoteSaveFolder;
         public readonly TouhouLocalSaveFile LocalSaveFile;
@@ -44,6 +46,7 @@ namespace TouhouSaveSync.SaveFiles
 
         public SaveFileMetadata GetRemoteSaveFileMetaData()
         {
+            Logger.Debug($"Retriving File Metadata (From Description) for Id: {RemoteFileId}");
             File remoteFile = m_googleDriveHandler.GetFile(this.RemoteFileId);
             string description = remoteFile.Description;
             // TODO: Handle when description doesn't have the correct value
@@ -65,12 +68,14 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public string CreateSaves()
         {
+            Logger.Debug("Uploading a new save to remote");
             SaveFileMetadata metadata = this.LocalSaveFile.ZipSaveFile();
             // We set the description of the file to the ScoreDatModifyTime to later use it as a metric
             // for determining which side is outdated. See DetermineSyncAction for how is the description used
             string id = this.m_googleDriveHandler.Upload(this.RemoteFileName,
                 this.LocalSaveFile.ZipSaveStoragePath, "application/zip", this.m_remoteSaveFolder,
                 JsonConvert.SerializeObject(metadata));
+            Logger.Debug($"Upload Complete. Uploaded File Id: {id}");
             return id;
         }
 
@@ -80,7 +85,9 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public void PullSaves()
         {
+            Logger.Debug("Downloading remote saves");
             this.m_googleDriveHandler.Download(this.RemoteFileId, this.LocalSaveFile.ZipSaveStoragePath);
+            Logger.Debug("Downloading complete. Loading Remote Save Files to Local Save");
             this.LocalSaveFile.LoadZippedSaveFile();
         }
 
@@ -90,9 +97,11 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public void PushSaves()
         {
+            Logger.Debug("Updating remote save with local save");
             SaveFileMetadata metadata = this.LocalSaveFile.ZipSaveFile();
             this.m_googleDriveHandler.Update(this.RemoteFileName, this.LocalSaveFile.ZipSaveStoragePath,
                 this.RemoteFileId, "application/zip", JsonConvert.SerializeObject(metadata));
+            Logger.Debug("Remote Save Updated");
         }
 
         public static TouhouRemoteSaveFile[] ToTouhouRemoteSaveFiles(TouhouLocalSaveFile[] localSaveFile,
@@ -101,6 +110,26 @@ namespace TouhouSaveSync.SaveFiles
             TouhouRemoteSaveFile[] remoteSaveFiles = new TouhouRemoteSaveFile[localSaveFile.Length];
             int i = 0;
             foreach (TouhouLocalSaveFile saveFile in localSaveFile)
+            {
+                remoteSaveFiles[i] = new TouhouRemoteSaveFile(saveFile, googleDriveHandler, remoteSaveFolderId);
+                i++;
+            }
+
+            return remoteSaveFiles;
+        }
+
+        public static TouhouRemoteSaveFile[] ToTouhouRemoteSaveFiles(TouhouLocalSaveFile[] newGenLocal,
+            TouhouLocalSaveFile[] oldGenLocal, GoogleDriveHandler googleDriveHandler, string remoteSaveFolderId)
+        {
+            TouhouRemoteSaveFile[] remoteSaveFiles = new TouhouRemoteSaveFile[newGenLocal.Length + oldGenLocal.Length];
+            int i = 0;
+            foreach (TouhouLocalSaveFile saveFile in newGenLocal)
+            {
+                remoteSaveFiles[i] = new TouhouRemoteSaveFile(saveFile, googleDriveHandler, remoteSaveFolderId);
+                i++;
+            }
+
+            foreach (TouhouLocalSaveFile saveFile in oldGenLocal)
             {
                 remoteSaveFiles[i] = new TouhouRemoteSaveFile(saveFile, googleDriveHandler, remoteSaveFolderId);
                 i++;
