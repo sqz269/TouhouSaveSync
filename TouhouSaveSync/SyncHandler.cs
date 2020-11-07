@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using Google.Apis.Download;
+using Google.Apis.Upload;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.SaveFiles;
@@ -48,6 +50,8 @@ namespace TouhouSaveSync
             this.InitialSync();
 
             this.RegisterSaveFileChangeHandlers();
+
+            this.RegisterGoogleDriveProgressChangeHandlers();
         }
 
         private void InitSaveFiles()
@@ -108,6 +112,41 @@ namespace TouhouSaveSync
             this.m_syncQueue.Add(handler);
         }
 
+        private void RegisterGoogleDriveProgressChangeHandlers()
+        {
+            this.m_googleDriveHandler.RegisterDownloadProgressCallback(OnDownloadProgressChanged);
+            this.m_googleDriveHandler.RegisterUploadProgressCallback(OnUploadProgressChanged);
+        }
+
+        private void OnDownloadProgressChanged(IDownloadProgress progress)
+        {
+            switch (progress.Status)
+            {
+                case DownloadStatus.Downloading:
+                    Logger.Debug($"Downloading ... {progress.BytesDownloaded} bytes downloaded");
+                    break;
+                case DownloadStatus.Completed:
+                    Logger.Debug($"Download completed. Downloaded ad total of {progress.BytesDownloaded} bytes");
+                    break;
+            }
+        }
+
+        private void OnUploadProgressChanged(IUploadProgress progress)
+        {
+            switch (progress.Status)
+            {
+                case UploadStatus.Starting:
+                    Logger.Debug("Starting Upload");
+                    break;
+                case UploadStatus.Uploading:
+                    Logger.Debug($"Uploading ... {progress.BytesSent} bytes uploaded");
+                    break;
+                case UploadStatus.Completed:
+                    Logger.Debug($"Upload Completed. Uploaded a total of {progress.BytesSent}");
+                    break;
+            }
+        }
+
         private SyncAction HandleConflict(bool localSaveBigger, bool localSaveRecent)
         {
             if (localSaveBigger && !localSaveRecent)
@@ -144,9 +183,7 @@ namespace TouhouSaveSync
             }
             catch (Exception e)
             {
-
-                // Logger.Warn("Unable to parse the file's description. Updating File With Local Saves");
-                Logger.Error(e, "Failed to retrieve Metadata for file");
+                Logger.Error(e, "Failed to retrieve/load Metadata for file. Overwriting Remote File");
                 return SyncAction.Push;
             }
             double remoteModifyTime = metadata.DatLastMod; ;
@@ -162,7 +199,7 @@ namespace TouhouSaveSync
             // Thus, they might be the same save file
             if (Math.Abs(timeDifference) <= SyncThresholdTimeDifference)
             {
-                Logger.Debug($"Not performing any Sync action for: {handler.LocalSaveFile.GameTitle}. Same modified time or modified time difference in acceptable range ({SyncThresholdTimeDifference}>{timeDifference})");
+                Logger.Debug($"Not performing any Sync action for: {handler.LocalSaveFile.GameTitle}. Same modified time or modified time difference in acceptable range ({SyncThresholdTimeDifference} > {timeDifference})");
                 return SyncAction.None;
             }
 

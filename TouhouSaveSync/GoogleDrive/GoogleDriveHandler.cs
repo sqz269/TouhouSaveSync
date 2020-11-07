@@ -29,6 +29,10 @@ namespace TouhouSaveSync.GoogleDrive
 
     public class GoogleDriveHandler
     {
+        public delegate void UploadProgressChanged(IUploadProgress progress);
+
+        public delegate void DownloadProgressChanged(IDownloadProgress progress);
+
         public static readonly string[] Scopes = {DriveService.Scope.Drive};
         public static readonly string ApplicationName = "Touhou Save File Sync";
 
@@ -37,6 +41,9 @@ namespace TouhouSaveSync.GoogleDrive
 
         public UserCredential Credential { get; private set; }
         public DriveService Service { get; private set; }
+
+        private UploadProgressChanged m_uploadProgressChangedCallback;
+        private DownloadProgressChanged m_downloadProgressChangedCallback;
 
         public GoogleDriveHandler(string credentialsPath="credentials.json", string tokenPath="token.json")
         {
@@ -217,17 +224,6 @@ namespace TouhouSaveSync.GoogleDrive
             return request.ResponseBody.Id;
         }
 
-        private void GoogleDriveUploadProgress(IUploadProgress progress)
-        {
-            if (progress.Status == UploadStatus.Starting)
-                // TODO: Make some call back for this so the Google Drive Handler don't have to print anything
-                Console.WriteLine("Starting upload");
-            else if (progress.Status == UploadStatus.Uploading)
-                Console.WriteLine("Uploading... {0} bytes uploaded", progress.BytesSent);
-            else if (progress.Status == UploadStatus.Completed)
-                Console.WriteLine("Upload completed. Uploaded a total of {0} bytes", progress.BytesSent);
-        }
-
         public void Download(string fileId, string dst)
         {
             FilesResource.GetRequest request = this.Service.Files.Get(fileId);
@@ -236,21 +232,24 @@ namespace TouhouSaveSync.GoogleDrive
             request.Download(stream);
         }
 
+        private void GoogleDriveUploadProgress(IUploadProgress progress)
+        {
+            this.m_uploadProgressChangedCallback?.Invoke(progress);
+        }
+
         private void GoogleDriveDownloadProgress(IDownloadProgress progress)
         {
-            switch (progress.Status)
-            {
-                case DownloadStatus.Downloading:
-                {
-                    Console.WriteLine("Downloading ... {0} bytes downloaded", progress.BytesDownloaded);
-                    break;
-                }
-                case DownloadStatus.Completed:
-                {
-                    Console.WriteLine("Download completed. Downloaded ad total of {0} bytes", progress.BytesDownloaded);
-                    break;
-                }
-            }
+            this.m_downloadProgressChangedCallback?.Invoke(progress);
+        }
+
+        public void RegisterDownloadProgressCallback(DownloadProgressChanged callback)
+        {
+            this.m_downloadProgressChangedCallback += callback;
+        }
+
+        public void RegisterUploadProgressCallback(UploadProgressChanged callback)
+        {
+            this.m_uploadProgressChangedCallback += callback;
         }
 
         /// <summary>
