@@ -49,16 +49,8 @@ namespace TouhouSaveSync.SaveFiles
             Logger.Debug($"Retriving File Metadata (From Description) for Id: {RemoteFileId}");
             File remoteFile = m_googleDriveHandler.GetFile(this.RemoteFileId);
             string description = remoteFile.Description;
-            // TODO: Handle when description doesn't have the correct value
             SaveFileMetadata metadata = JsonConvert.DeserializeObject<SaveFileMetadata>(description);
-            return new SaveFileMetadata()
-            {
-                Checksum = metadata.Checksum,
-                ZipLastMod = metadata.ZipLastMod,
-                DatLastMod = metadata.DatLastMod,
-                DatSize = metadata.DatSize,
-                ZipSize = metadata.ZipSize
-            };
+            return metadata;
         }
 
         /// <summary>
