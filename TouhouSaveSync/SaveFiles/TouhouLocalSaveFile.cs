@@ -140,7 +140,7 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public void LoadZippedSaveFile()
         {
-            Logger.Debug($"Loading Save From Zip. Zip Path: {ZipSaveStoragePath} -> {GameSavePath}");
+            Logger.Debug($"Loading Save From Zip. Zip Path: \"{ZipSaveStoragePath}\" -> \"{GameSavePath}\"");
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Open);
             using ZipArchive archive = new ZipArchive(stream);
             archive.ExtractToDirectory(this.GameSavePath, true);

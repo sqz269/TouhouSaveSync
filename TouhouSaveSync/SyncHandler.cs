@@ -186,7 +186,7 @@ namespace TouhouSaveSync
                 Logger.Error(e, "Failed to retrieve/load Metadata for file. Overwriting Remote File");
                 return SyncAction.Push;
             }
-            double remoteModifyTime = metadata.DatLastMod; ;
+            double remoteModifyTime = metadata.DatLastMod;
 
             double timeDifference = localModifyTime - remoteModifyTime;
 
