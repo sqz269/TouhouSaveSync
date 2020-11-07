@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Google.Apis.Download;
 using Google.Apis.Upload;
+using NLog.Fluent;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.SaveFiles;
@@ -233,7 +235,10 @@ namespace TouhouSaveSync
 
         private void ExecuteSyncAction(SaveFileHandler saveHandler, SyncAction action)
         {
-            Logger.Info($"Performing Sync Action: {action}, on {saveHandler.LocalSaveFile.GameTitle}");
+            if (action != SyncAction.None)
+                Logger.Info($"Performing Sync Action: {action}, on {saveHandler.LocalSaveFile.GameTitle}");
+            else
+                Logger.Debug($"Performing Sync Action: {action}, on {saveHandler.LocalSaveFile.GameTitle}");
             switch (action)
             {
                 case SyncAction.Push:
@@ -261,7 +266,7 @@ namespace TouhouSaveSync
                 Logger.Trace($"Processing: {handler.LocalSaveFile.GameTitle}");
                 if (ProcessUtility.IsProcessActive(handler.ExecutableName))
                 {
-                    Logger.Info($"Holding off sync for {handler.LocalSaveFile.GameTitle} because game is active");
+                    Logger.Debug($"Holding off sync (Local) for {handler.LocalSaveFile.GameTitle} because game is active");
                 }
                 else
                 {
@@ -276,16 +281,41 @@ namespace TouhouSaveSync
             }
         }
 
+        private void PollRemote()
+        {
+            Logger.Debug("Checking Remote");
+            foreach (SaveFileHandler handler in SaveFiles)
+            {
+                if (ProcessUtility.IsProcessActive(handler.ExecutableName))
+                {
+                    Logger.Debug($"Holding off sync (Remote) for {handler.LocalSaveFile.GameTitle} because game is active");
+                    continue;
+                }
+                if (m_syncQueue.Contains(handler))
+                {
+                    Logger.Debug($"Holding off sync (Remote) for {handler.LocalSaveFile.GameTitle} because the game is already in local syncing queue");
+                    continue;
+                }
+                this.ExecuteSyncAction(handler, this.DetermineSyncAction(handler));
+                Thread.Sleep(1000);
+            }
+        }
+
         /// <summary>
         /// Enters a sync loop
         /// </summary>
+        [DoesNotReturn]
         public void SyncLoop()
         {
             Logger.Info("Entered Sync Loop");
+            bool pollRemote = false;
             while (true)
             {
                 this.PollQueue();
-                Thread.Sleep(5000);
+                Thread.Sleep(10000);
+                if (pollRemote)
+                    PollRemote();
+                pollRemote = !pollRemote;
             }
         }
     }
