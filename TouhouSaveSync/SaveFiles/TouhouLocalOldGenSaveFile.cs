@@ -19,7 +19,7 @@ namespace TouhouSaveSync.SaveFiles
 
         public override SaveFileMetadata ZipSaveFile()
         {
-            Logger.Debug($"Creating Zip file for {GameTitle} to {ZipSaveStoragePath}");
+            Logger.Debug($"Creating Zip file for {GameTitle} to \"{ZipSaveStoragePath}\"");
 
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Create);
             using ZipArchive archive = new ZipArchive(stream, ZipArchiveMode.Create);
@@ -29,11 +29,11 @@ namespace TouhouSaveSync.SaveFiles
             string cfgFilePath = Path.Combine(this.GameSavePath, $"{gameName}.cfg");
             if (File.Exists(cfgFilePath))
             {
-                Logger.Trace($"Found config file (key bind and game settings) at {cfgFilePath}");
+                Logger.Trace($"Found config file (key bind and game settings) at \"{cfgFilePath}\"");
                 archive.CreateEntryFromFile(cfgFilePath, $"{gameName}.cfg");
             }
             else
-                Logger.Trace($"Did not find config file. Either it does not exist or wrong path has been guessed. Guessed path: {cfgFilePath}");
+                Logger.Trace($"Did not find config file. Either it does not exist or wrong path has been guessed. Guessed path: \"{cfgFilePath}\"");
 
             // There could be 2 kind of score file names in the older generation of touhou games
             // The new engine game's dat file's name is score<GameName>.dat. Example: th10.exe -> scoreth10.dat
@@ -44,26 +44,26 @@ namespace TouhouSaveSync.SaveFiles
             Logger.Trace("Guessing score.dat paths");
             if (File.Exists(scoreFilePath))
             {
-                Logger.Trace($"Found score.dat at: {scoreFilePath}. Adding to archive");
+                Logger.Trace($"Found score.dat at: \"{scoreFilePath}\". Adding to archive");
                 archive.CreateEntryFromFile(scoreFilePath, "score.dat");
             }
             else if (File.Exists(scoreFilePathType2))
             {
-                Logger.Trace($"Found score.dat at: {scoreFilePathType2}. Adding to archive");
+                Logger.Trace($"Found score.dat at: \"{scoreFilePathType2}\" Adding to archive");
                 archive.CreateEntryFromFile(scoreFilePathType2, $"score{gameName}.dat");
             }
             else
-                Logger.Trace($"Did not find score.dat. Either it does not exist or wrong path has been guessed. Guess 1: {scoreFilePath} | Guess 2: {scoreFilePathType2}");
+                Logger.Trace($"Did not find score.dat. Either it does not exist or wrong path has been guessed. Guess 1: \"{scoreFilePath}\" | Guess 2: \"{scoreFilePathType2}\"");
 
             Logger.Trace("Guessing replay paths");
             string replayFolderPath = Path.Combine(this.GameSavePath, "replay");
             if (Directory.Exists(replayFolderPath))
             {
-                Logger.Trace($"Found replay directory at: {replayFolderPath}. Adding to archive");
+                Logger.Trace($"Found replay directory at: \"{replayFolderPath}\". Adding to archive");
                 archive.CreateEntryFromDirectory(replayFolderPath, "replay");
             }
             else
-                Logger.Trace($"Did not file replay folder. Either it does not exist or wrong path has been guessed. Guess 1: {replayFolderPath}");
+                Logger.Trace($"Did not file replay folder. Either it does not exist or wrong path has been guessed. Guess 1: \"{replayFolderPath}\"");
             archive.Dispose();  // We need to stop the ZipArchive from accessing the file before Generating a checksum
 
             Logger.Trace("Generating Metadata for created zip");

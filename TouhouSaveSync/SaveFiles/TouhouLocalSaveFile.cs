@@ -34,6 +34,13 @@ namespace TouhouSaveSync.SaveFiles
         public readonly string ZipSaveStoragePath;
         public readonly TouhouGameGeneration Generation;
 
+        private string _scorePath;
+        public string ScorePath
+        {
+            get { return _scorePath ??= GetScorePath(); }
+            private set => _scorePath = value;
+        }
+
         protected TouhouLocalSaveFile(string gameTitle, string zipSaveStoragePath, string gameSavePath, TouhouGameGeneration generation)
         {
             this.GameTitle = gameTitle;
@@ -84,7 +91,7 @@ namespace TouhouSaveSync.SaveFiles
             return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
         }
 
-        public string GetScorePath()  // TODO: Cache Value
+        public string GetScorePath()
         {
             foreach (string f in Directory.GetFiles(this.GameSavePath, "*.dat"))
             {
@@ -94,7 +101,6 @@ namespace TouhouSaveSync.SaveFiles
                     return f;
                 }
             }
-
             return null;
         }
 
@@ -106,10 +112,9 @@ namespace TouhouSaveSync.SaveFiles
         /// <returns>A double representing seconds after 1970/1/1</returns>
         public double GetScoreDatModifyTime()
         {
-            string f = GetScorePath();
-            if (f != null)
+            if (this.ScorePath != null)
             {
-                DateTime dateTime = File.GetLastWriteTime(f);
+                DateTime dateTime = File.GetLastWriteTime(this.ScorePath);
                 return dateTime.Subtract(DateTime.UnixEpoch).TotalSeconds;
             }
             return -1;
@@ -117,13 +122,7 @@ namespace TouhouSaveSync.SaveFiles
 
         public double GetScoreDatSize()
         {
-            string f = GetScorePath();
-            if (f != null)
-            {
-                return new FileInfo(f).Length;
-            }
-
-            return -1;
+            return this.ScorePath != null ? new FileInfo(this.ScorePath).Length : -1;
         }
 
         /// <summary>
@@ -140,7 +139,7 @@ namespace TouhouSaveSync.SaveFiles
         /// </summary>
         public void LoadZippedSaveFile()
         {
-            Logger.Debug($"Loading Save From Zip. Zip Path: {ZipSaveStoragePath} -> {GameSavePath}");
+            Logger.Debug($"Loading Save From Zip. Zip Path: \"{ZipSaveStoragePath}\" -> \"{GameSavePath}\"");
             using FileStream stream = new FileStream(this.ZipSaveStoragePath, FileMode.Open);
             using ZipArchive archive = new ZipArchive(stream);
             archive.ExtractToDirectory(this.GameSavePath, true);

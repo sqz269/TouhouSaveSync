@@ -19,13 +19,14 @@ namespace TouhouSaveSync.SaveFiles
             {
                 if (_remoteFileId == null)
                 {
+                    Logger.Debug($"No Cached Remote ID Stored for: {LocalSaveFile.GameTitle}. Caching new ID");
                     RemoteFileId = this.GetRemoteFileId();
                     return _remoteFileId;
                 }
 
                 return _remoteFileId;
             }
-            set => _remoteFileId = value;
+            private set => _remoteFileId = value;
         }
 
         public string RemoteFileName { get; private set; }
@@ -41,7 +42,16 @@ namespace TouhouSaveSync.SaveFiles
         private string GetRemoteFileId()
         {
             var file = m_googleDriveHandler.FindFirstFileWithName(this.RemoteFileName, this.m_remoteSaveFolder);
-            return file == null ? this.CreateSaves() : file.Id;
+            if (file == null)
+            {
+                Logger.Debug($"Did not find remote file with name: {RemoteFileName}. Uploading a new file");
+                return this.CreateSaves();
+            }
+            else
+            {
+                Logger.Debug($"Found remote file with name: {RemoteFileName}. Id: {file.Id}");
+                return file.Id;
+            }
         }
 
         public SaveFileMetadata GetRemoteSaveFileMetaData()
@@ -49,16 +59,8 @@ namespace TouhouSaveSync.SaveFiles
             Logger.Debug($"Retriving File Metadata (From Description) for Id: {RemoteFileId}");
             File remoteFile = m_googleDriveHandler.GetFile(this.RemoteFileId);
             string description = remoteFile.Description;
-            // TODO: Handle when description doesn't have the correct value
             SaveFileMetadata metadata = JsonConvert.DeserializeObject<SaveFileMetadata>(description);
-            return new SaveFileMetadata()
-            {
-                Checksum = metadata.Checksum,
-                ZipLastMod = metadata.ZipLastMod,
-                DatLastMod = metadata.DatLastMod,
-                DatSize = metadata.DatSize,
-                ZipSize = metadata.ZipSize
-            };
+            return metadata;
         }
 
         /// <summary>
