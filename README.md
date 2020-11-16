@@ -11,5 +11,7 @@ Sync Touhou Game Data Using Google Drive
 6. A file named `credentials.json` should be downloaded
 ### Download and Running the sync
 7. Download binary release from [here](https://github.com/sqz269/TouhouSaveSync/releases)
-8. Extract the zip file and run the exe
-9.  Done.
+8. Extract the zip file
+9. Move `credentials.json` to the folder containing `TouhouSaveSync.exe`
+10. Run `TouhouSaveSync.exe`
+11. Done.
