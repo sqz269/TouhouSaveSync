@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.Utility;
@@ -27,9 +28,17 @@ namespace TouhouSaveSync
                 ConfigManager.UpdateSetting("FirstRun", "false");
             }
 
+            string credentials = ConfigManager.GetSetting("CredentialsPath");
+            if (!File.Exists(credentials))
+            {
+                Logger.Fatal($"No credentials exists at: \"{credentials}\". Cannot proceed");
+                InputManager.GetStringInput("Press Enter to exit");
+                Environment.Exit(1);
+            }
+
             Logger.Info("Initializing Google Drive API");
             GoogleDriveHandler googleDriveHandler = 
-                new GoogleDriveHandler(ConfigManager.GetSetting("CredentialsPath"), ConfigManager.GetSetting("TokenPath"));
+                new GoogleDriveHandler(credentials, ConfigManager.GetSetting("TokenPath"));
             Logger.Info("Google Drive Initialized");
 
             SyncHandler syncHandler = new SyncHandler(googleDriveHandler);

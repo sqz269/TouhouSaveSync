@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Google.Apis.Download;
 using Google.Apis.Upload;
-using NLog.Fluent;
 using TouhouSaveSync.Config;
 using TouhouSaveSync.GoogleDrive;
 using TouhouSaveSync.SaveFiles;
@@ -161,11 +160,18 @@ namespace TouhouSaveSync
             }
             while (true)
             {
-                string keepTarget = InputManager.GetStringInput("Keep Local or Keep Remote? (1: Local, 0: Remote)");
+                string keepTarget = InputManager.GetStringInput("Keep Local or Keep Remote? (1: Local, 2: Remote)");
                 if (keepTarget == "1")
+                {
+                    Logger.Info("Keeping Local");
                     return SyncAction.Push;
-                else if (keepTarget == "2")
+                }
+
+                if (keepTarget == "2")
+                {
+                    Logger.Info("Keeping Remote");
                     return SyncAction.Pull;
+                }
             }
         }
 
